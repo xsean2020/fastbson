@@ -1,6 +1,6 @@
 # fastbson — Zero-Reflection BSON Code Generator
 
-`fastbson` is a Go code generator that produces **zero-reflection** `MarshalBSON()` and `UnmarshalBSON()` methods for your structs. It reads Go source files, finds structs annotated with `//go:bson`, and generates type-specific BSON encoding/decoding code using `go.mongodb.org/mongo-driver/x/bsonx/bsoncore`.
+`fastbson` is a Go code generator that produces **zero-reflection** `MarshalBSON()` and `UnmarshalBSON()` methods for your structs. It reads Go source files, finds structs annotated with `//go:fastbson`, and generates type-specific BSON encoding/decoding code using `go.mongodb.org/mongo-driver/x/bsonx/bsoncore`.
 
 ## Why?
 
@@ -11,7 +11,7 @@ The official `go.mongodb.org/mongo-driver/bson` package uses **reflection** at r
 ## Quick Start
 
 ```go
-//go:bson
+//go:fastbson
 type Player struct {
     ID    int64  `bson:"_id"`
     Name  string `bson:"name"`
@@ -32,16 +32,19 @@ This generates `player_bson.go` with `func (z *Player) MarshalBSON() ([]byte, er
 # Install
 go build -o fastbson main.go
 
-# Generate BSON code for a file
+# Generate BSON code for a single file
 ./fastbson types.go
 
-# Generated file: types_bson.go
+# Or for an entire directory (scans all .go files)
+./fastbson .
+
+# Generated files: types_bson.go (per input file)
 ```
 
-Add the `//go:bson` directive above any struct you want to generate code for:
+Add the `//go:fastbson` directive above any struct you want to generate code for:
 
 ```go
-//go:bson
+//go:fastbson
 type MyStruct struct {
     Field1 string  `bson:"field1"`
     Field2 int32   `bson:"field2,omitempty"`
@@ -82,7 +85,7 @@ type MyStruct struct {
 | `[]T` | Array | ✓ | ✓ |
 | `map[string]T` | Document | ✓ | ✓ |
 | `*T` | Null / Document | ✓ | ✓ |
-| `struct{...}` (named, with `//go:bson`) | Document | ✓ | ✓ |
+| `struct{...}` (named, with `//go:fastbson`) | Document | ✓ | ✓ |
 | `struct{...}` (anonymous inline) | Document | ✓ | ✓ |
 | `[][]T` | Nested Array | ✓ | ✓ |
 | `[]*T` | Array of documents | ✓ | ✓ |
@@ -105,30 +108,29 @@ Benchmarks on Apple M1 (Go 1.25), comparing generated code vs `go.mongodb.org/mo
 
 | Struct | Size | Generated | Official | Speedup |
 |--------|------|-----------|----------|---------|
-| BattleStats (3 int32) | 37 B | **108 ns/op** | 288 ns/op | **2.7×** |
-| Hero (4 mixed fields) | 56 B | **135 ns/op** | 352 ns/op | **2.6×** |
-| IntWidths (10 ints) | 148 B | **220 ns/op** | 722 ns/op | **3.3×** |
-| WideStruct (26 int32) | 324 B | **488 ns/op** | 1559 ns/op | **3.2×** |
-| Player (complex, 17+ fields) | ~500 B | **1062 ns/op** | 2843 ns/op | **2.7×** |
+| BattleStats (3 int32) | 37 B | **105 ns/op** | 489 ns/op | **4.7×** |
+| IntWidths (10 ints) | 148 B | **230 ns/op** | 674 ns/op | **2.9×** |
+| WideStruct (26 int32) | 324 B | **416 ns/op** | 1361 ns/op | **3.3×** |
+| Player (complex, 17+ fields) | ~500 B | **1001 ns/op** | 2651 ns/op | **2.6×** |
 
 ### Unmarshal
 
 | Struct | Generated | Official | Speedup |
 |--------|-----------|----------|---------|
-| BattleStats | **202 ns/op** | 353 ns/op | **1.7×** |
-| Hero | **260 ns/op** | 450 ns/op | **1.7×** |
-| WideStruct | **1418 ns/op** | 1552 ns/op | **1.1×** |
-| Player | **2992 ns/op** | 3946 ns/op | **1.3×** |
+| BattleStats (3 int32) | **67 ns/op** | 187 ns/op | **2.8×** |
+| WideStruct (26 int32) | **470 ns/op** | 603 ns/op | **1.3×** |
+| Player (complex, 17+ fields) | **1513 ns/op** | 2013 ns/op | **1.3×** |
+| PlayerHeroRefs (sub-docs) | **1186 ns/op** | 1394 ns/op | **1.2×** |
 
 ### Memory (Player benchmarks)
 
 | Operation | Generated | Official | Improvement |
 |-----------|-----------|----------|-------------|
-| Marshal | 1496 B/op, 23 allocs | 1009 B/op, 10 allocs | — (more sub-buffers) |
-| Unmarshal | **2536 B/op, 30 allocs** | 3497 B/op, 34 allocs | **28% less memory** |
-| Round-trip | **4032 B/op, 53 allocs** | 4512 B/op, 44 allocs | **11% less memory** |
+| Marshal | 1448 B/op, 18 allocs | 800 B/op, 2 allocs | — (sub-buffers) |
+| Unmarshal | **752 B/op, 20 allocs** | 1712 B/op, 24 allocs | **56% less memory** |
+| Round-trip | **2136 B/op, 37 allocs** | 2484 B/op, 26 allocs | **14% less memory** |
 
-> **Note:** Marshal allocates more because `bsoncore.AppendDocumentStart(nil)` creates a fresh buffer for each sub-document. This is the bsoncore API design — the tradeoff buys zero-reflection encoding.
+> **Note:** Simple flat structs (e.g., WideStruct, BattleStats) achieve **zero allocations** during unmarshal thanks to direct byte-level element iteration without intermediate `[]Element` slice allocation or per-element `Key()` string allocation.
 
 ### Running Benchmarks
 
@@ -139,7 +141,7 @@ go test -bench=. -benchmem -count=1
 
 ## How It Works
 
-1. **Parsing**: Reads Go source, finds `//go:bson` structs
+1. **Parsing**: Reads Go source, finds `//go:fastbson` structs
 2. **Classification**: Categorizes each field into ~35 BSON types
 3. **Code Generation**: Emits type-specific `MarshalBSON()` / `UnmarshalBSON()` methods
 
