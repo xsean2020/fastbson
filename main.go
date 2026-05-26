@@ -16,50 +16,50 @@ import (
 	"strings"
 )
 
-// bsonCat classifies a field's BSON category.
-type bsonCat int
+// bsonKind classifies a field's BSON category.
+type bsonKind int
 
 const (
-	catDouble              bsonCat = iota //
-	catString                             //
-	catDocument                           //
-	catArray                              //
-	catBinary                             // []byte, primitive.Binary
-	catObjectID                           // primitive.ObjectID
-	catBoolean                            //
-	catDateTime                           // time.Time
-	catNull                               // primitive.Null
-	catRegex                              // primitive.Regex
-	catJavaScript                         // primitive.JavaScript
-	catJavaScriptWithScope                //
-	catInt32                              //
-	catInt64                              // int64
-	catTimestamp                          // primitive.Timestamp
-	catDecimal128                         // primitive.Decimal128
-	catMinKey                             //
-	catMaxKey                             //
-	catSymbol                             // primitive.Symbol
-	catUndefined                          //
-	catUnknown                            //
+	kindDouble              bsonKind = iota //
+	kindString                             //
+	kindDocument                           //
+	kindArray                              //
+	kindBinary                             // []byte, primitive.Binary
+	kindObjectID                           // primitive.ObjectID
+	kindBoolean                            //
+	kindDateTime                           // time.Time
+	kindNull                               // primitive.Null
+	kindRegex                              // primitive.Regex
+	kindJavaScript                         // primitive.JavaScript
+	kindJavaScriptWithScope                //
+	kindInt32                              //
+	kindInt64                              // int64
+	kindTimestamp                          // primitive.Timestamp
+	kindDecimal128                         // primitive.Decimal128
+	kindMinKey                             //
+	kindMaxKey                             //
+	kindSymbol                             // primitive.Symbol
+	kindUndefined                          //
+	kindUnknown                            //
 
 	// compound categories
-	catInt               // int
-	catInt8              // int8
-	catInt16             // int16
-	catUint              // uint
-	catUint16            // uint16
-	catUint32            // uint32
-	catUint64            // uint64
-	catFloat32           // float32
-	catPointer           // *T
-	catMap               // map[string]T
-	catStructRef         // struct with //go:bson
-	catPrimitiveD        // primitive.D
-	catPrimitiveA        // primitive.A
-	catPrimitiveM        // primitive.M
-	catByte              // byte
-	catPrimitiveDateTime // primitive.DateTime
-	catAnonStruct        // anonymous struct (struct{...} field)
+	kindInt               // int
+	kindInt8              // int8
+	kindInt16             // int16
+	kindUint              // uint
+	kindUint16            // uint16
+	kindUint32            // uint32
+	kindUint64            // uint64
+	kindFloat32           // float32
+	kindPointer           // *T
+	kindMap               // map[string]T
+	kindStructRef         // struct with //go:bson
+	kindPrimitiveD        // primitive.D
+	kindPrimitiveA        // primitive.A
+	kindPrimitiveM        // primitive.M
+	kindByte              // byte
+	kindPrimitiveDateTime // primitive.DateTime
+	kindAnonStruct        // anonymous struct (struct{...} field)
 )
 
 var (
@@ -73,14 +73,14 @@ type fieldInfo struct {
 	Name           string
 	BsonKey        string
 	GoType         string
-	Category       bsonCat
+	Category       bsonKind
 	ElemCat        *fieldInfo
-	Fields         []fieldInfo // for catAnonStruct (anonymous struct fields) or non-interface catStructRef
+	Fields         []fieldInfo // for kindAnonStruct (anonymous struct fields) or non-interface kindStructRef
 	OmitEmpty      bool
 	MinSize        bool
 	Inline         bool
-	BinaryIsNative bool   // catBinary came from []byte (vs primitive.Binary)
-	StructName     string // actual struct name for catStructRef (e.g. "Hero")
+	BinaryIsNative bool   // kindBinary came from []byte (vs primitive.Binary)
+	StructName     string // actual struct name for kindStructRef (e.g. "Hero")
 }
 
 type structInfo struct {
@@ -370,7 +370,7 @@ func appendFieldOrInline(out *structInfo, fi fieldInfo, fset *token.FileSet, whi
 
 func expandInlineFields(fi fieldInfo, path string, fset *token.FileSet, whiteList map[string]bool) []fieldInfo {
 	switch fi.Category {
-	case catStructRef:
+	case kindStructRef:
 		if len(fi.Fields) == 0 && fi.StructName != "" {
 			populateStructFields(&fi, fi.StructName, fset, whiteList)
 		}
@@ -384,7 +384,7 @@ func expandInlineFields(fi fieldInfo, path string, fset *token.FileSet, whiteLis
 			out = append(out, sf)
 		}
 		return out
-	case catAnonStruct:
+	case kindAnonStruct:
 		var out []fieldInfo
 		for _, sf := range fi.Fields {
 			sf.Name = path + "." + sf.Name
@@ -413,7 +413,7 @@ func parseField(name string, field *ast.Field, fset *token.FileSet, whiteList ma
 		if curr == nil {
 			return
 		}
-		if curr.Category == catStructRef && curr.StructName != "" {
+		if curr.Category == kindStructRef && curr.StructName != "" {
 			if !marshalerTypes[curr.StructName] || !unmarshalerTypes[curr.StructName] {
 				if !visited[curr.StructName] {
 					visited[curr.StructName] = true
@@ -534,34 +534,34 @@ func (fi *fieldInfo) parseTag(field *ast.Field) {
 func (fi *fieldInfo) resolveCategory(expr ast.Expr, fset *token.FileSet, whiteList map[string]bool) {
 	switch t := expr.(type) {
 	case *ast.StarExpr:
-		fi.Category = catPointer
+		fi.Category = kindPointer
 		inner := &fieldInfo{}
 		inner.resolveCategory(t.X, fset, whiteList)
 		fi.ElemCat = inner
 	case *ast.ArrayType:
 		if id, ok := t.Elt.(*ast.Ident); ok && id.Name == "byte" {
-			fi.Category = catBinary
+			fi.Category = kindBinary
 			fi.BinaryIsNative = true
 			return
 		}
-		fi.Category = catArray
+		fi.Category = kindArray
 		inner := &fieldInfo{}
 		inner.resolveCategory(t.Elt, fset, whiteList)
 		fi.ElemCat = inner
 	case *ast.MapType:
-		fi.Category = catMap
+		fi.Category = kindMap
 		inner := &fieldInfo{}
 		inner.resolveCategory(t.Value, fset, whiteList)
 		fi.ElemCat = inner
 	case *ast.SelectorExpr:
 		fi.resolveSelector(t)
 	case *ast.StructType:
-		fi.Category = catAnonStruct
+		fi.Category = kindAnonStruct
 		collectAnonFields(t, fset, whiteList, fi)
 	case *ast.Ident:
 		fi.resolveIdent(t, whiteList)
 	default:
-		fi.Category = catUnknown
+		fi.Category = kindUnknown
 	}
 }
 
@@ -582,85 +582,85 @@ func collectAnonFields(st *ast.StructType, fset *token.FileSet, whiteList map[st
 func (fi *fieldInfo) resolveSelector(sel *ast.SelectorExpr) {
 	pkg, ok := sel.X.(*ast.Ident)
 	if !ok {
-		fi.Category = catUnknown
+		fi.Category = kindUnknown
 		return
 	}
 	switch pkg.Name + "." + sel.Sel.Name {
 	case "time.Time":
-		fi.Category = catDateTime
+		fi.Category = kindDateTime
 	case "primitive.DateTime":
-		fi.Category = catPrimitiveDateTime
+		fi.Category = kindPrimitiveDateTime
 	case "primitive.ObjectID":
-		fi.Category = catObjectID
+		fi.Category = kindObjectID
 	case "primitive.Binary":
-		fi.Category = catBinary
+		fi.Category = kindBinary
 	case "primitive.Regex":
-		fi.Category = catRegex
+		fi.Category = kindRegex
 	case "primitive.Timestamp":
-		fi.Category = catTimestamp
+		fi.Category = kindTimestamp
 	case "primitive.Decimal128":
-		fi.Category = catDecimal128
+		fi.Category = kindDecimal128
 	case "primitive.JavaScript":
-		fi.Category = catJavaScript
+		fi.Category = kindJavaScript
 	case "primitive.Symbol":
-		fi.Category = catSymbol
+		fi.Category = kindSymbol
 	case "primitive.Null":
-		fi.Category = catNull
+		fi.Category = kindNull
 	case "primitive.Undefined":
-		fi.Category = catUndefined
+		fi.Category = kindUndefined
 	case "primitive.MinKey":
-		fi.Category = catMinKey
+		fi.Category = kindMinKey
 	case "primitive.MaxKey":
-		fi.Category = catMaxKey
+		fi.Category = kindMaxKey
 	case "primitive.CodeWithScope":
-		fi.Category = catJavaScriptWithScope
+		fi.Category = kindJavaScriptWithScope
 	case "primitive.D":
-		fi.Category = catPrimitiveD
+		fi.Category = kindPrimitiveD
 	case "primitive.A":
-		fi.Category = catPrimitiveA
+		fi.Category = kindPrimitiveA
 	case "primitive.M":
-		fi.Category = catPrimitiveM
+		fi.Category = kindPrimitiveM
 	default:
-		fi.Category = catUnknown
+		fi.Category = kindUnknown
 	}
 }
 
 func (fi *fieldInfo) resolveIdent(id *ast.Ident, whiteList map[string]bool) {
 	switch id.Name {
 	case "float64":
-		fi.Category = catDouble
+		fi.Category = kindDouble
 	case "float32":
-		fi.Category = catFloat32
+		fi.Category = kindFloat32
 	case "string":
-		fi.Category = catString
+		fi.Category = kindString
 	case "bool":
-		fi.Category = catBoolean
+		fi.Category = kindBoolean
 	case "int":
-		fi.Category = catInt
+		fi.Category = kindInt
 	case "int8":
-		fi.Category = catInt8
+		fi.Category = kindInt8
 	case "int16":
-		fi.Category = catInt16
+		fi.Category = kindInt16
 	case "int32":
-		fi.Category = catInt32
+		fi.Category = kindInt32
 	case "int64":
-		fi.Category = catInt64
+		fi.Category = kindInt64
 	case "uint":
-		fi.Category = catUint
+		fi.Category = kindUint
 	case "uint16":
-		fi.Category = catUint16
+		fi.Category = kindUint16
 	case "uint32":
-		fi.Category = catUint32
+		fi.Category = kindUint32
 	case "uint8", "byte":
-		fi.Category = catByte
+		fi.Category = kindByte
 	case "uint64":
-		fi.Category = catUint64
+		fi.Category = kindUint64
 	default:
 		if whiteList[id.Name] || structMap[id.Name] != nil {
-			fi.Category = catStructRef
+			fi.Category = kindStructRef
 			fi.StructName = id.Name
 		} else {
-			fi.Category = catUnknown
+			fi.Category = kindUnknown
 		}
 	}
 }
@@ -695,28 +695,28 @@ func buildImportList(structs []structInfo) []string {
 	var walk func(f *fieldInfo)
 	walk = func(f *fieldInfo) {
 		switch f.Category {
-		case catArray:
+		case kindArray:
 			needsFmt = true
 			needsStrconv = true
 			walk(f.ElemCat)
-		case catMap:
+		case kindMap:
 			needsFmt = true
 			walk(f.ElemCat)
-		case catPointer:
+		case kindPointer:
 			walk(f.ElemCat)
-		case catPrimitiveD, catPrimitiveA, catPrimitiveM, catUnknown:
+		case kindPrimitiveD, kindPrimitiveA, kindPrimitiveM, kindUnknown:
 			needsFmt = true
 			needsBson = true
-		case catStructRef:
+		case kindStructRef:
 			needsFmt = true
-		case catUint, catUint64:
+		case kindUint, kindUint64:
 			needsFmt = true
-		case catNull, catUndefined, catMinKey, catMaxKey:
+		case kindNull, kindUndefined, kindMinKey, kindMaxKey:
 			needsPrimitive = true
-		case catDateTime, catPrimitiveDateTime, catRegex, catTimestamp, catJavaScript,
-			catJavaScriptWithScope, catSymbol:
+		case kindDateTime, kindPrimitiveDateTime, kindRegex, kindTimestamp, kindJavaScript,
+			kindJavaScriptWithScope, kindSymbol:
 			needsPrimitive = true
-		case catBinary:
+		case kindBinary:
 			if !f.BinaryIsNative {
 				needsPrimitive = true
 			}
@@ -780,7 +780,7 @@ func genMarshalField(buf *bytes.Buffer, f *fieldInfo, ind, dstVar, prefix string
 
 	// Inline fields: expand their sub-fields directly into the parent document.
 	if f.Inline {
-		if f.Category == catStructRef {
+		if f.Category == kindStructRef {
 			// Marshal the inlined struct's fields directly via a temp call.
 			// We can't easily inline field-by-field without knowing the sub-struct's
 			// field list here; fall back to marshaling the sub-struct and appending
@@ -799,7 +799,7 @@ func genMarshalField(buf *bytes.Buffer, f *fieldInfo, ind, dstVar, prefix string
 	}
 
 	switch f.Category {
-	case catPointer:
+	case kindPointer:
 		genMarshalPtr(buf, f, ind, dstVar, !f.OmitEmpty, prefix)
 		return
 	}
@@ -811,15 +811,15 @@ func genMarshalField(buf *bytes.Buffer, f *fieldInfo, ind, dstVar, prefix string
 	}
 
 	switch f.Category {
-	case catDouble:
+	case kindDouble:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendDoubleElement(%s, %q, %s.%s)\n", ind, dstVar, dstVar, f.BsonKey, prefix, f.Name)
-	case catString:
+	case kindString:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendStringElement(%s, %q, %s.%s)\n", ind, dstVar, dstVar, f.BsonKey, prefix, f.Name)
-	case catBoolean:
+	case kindBoolean:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendBooleanElement(%s, %q, %s.%s)\n", ind, dstVar, dstVar, f.BsonKey, prefix, f.Name)
-	case catInt32:
+	case kindInt32:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendInt32Element(%s, %q, %s.%s)\n", ind, dstVar, dstVar, f.BsonKey, prefix, f.Name)
-	case catInt64:
+	case kindInt64:
 		if f.MinSize {
 			fmt.Fprintf(buf, "%sif %s.%s >= -2147483648 && %s.%s <= 2147483647 {\n", ind, prefix, f.Name, prefix, f.Name)
 			fmt.Fprintf(buf, "%s%s = bsoncore.AppendInt32Element(%s, %q, int32(%s.%s))\n", ind2, dstVar, dstVar, f.BsonKey, prefix, f.Name)
@@ -829,29 +829,29 @@ func genMarshalField(buf *bytes.Buffer, f *fieldInfo, ind, dstVar, prefix string
 		} else {
 			fmt.Fprintf(buf, "%s%s = bsoncore.AppendInt64Element(%s, %q, %s.%s)\n", ind, dstVar, dstVar, f.BsonKey, prefix, f.Name)
 		}
-	case catInt, catInt8, catInt16, catUint16, catByte:
+	case kindInt, kindInt8, kindInt16, kindUint16, kindByte:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendInt32Element(%s, %q, int32(%s.%s))\n", ind, dstVar, dstVar, f.BsonKey, prefix, f.Name)
-	case catUint:
+	case kindUint:
 		fmt.Fprintf(buf, "%sif uint64(%s.%s) > 9223372036854775807 {\n", ind, prefix, f.Name)
 		fmt.Fprintf(buf, "%sreturn nil, fmt.Errorf(\"字段 %%s 超出 int64 范围\", %q)\n", ind2, f.BsonKey)
 		fmt.Fprintf(buf, "%s}\n", ind)
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendInt64Element(%s, %q, int64(%s.%s))\n", ind, dstVar, dstVar, f.BsonKey, prefix, f.Name)
-	case catUint32:
+	case kindUint32:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendInt64Element(%s, %q, int64(%s.%s))\n", ind, dstVar, dstVar, f.BsonKey, prefix, f.Name)
-	case catUint64:
+	case kindUint64:
 		fmt.Fprintf(buf, "%sif %s.%s > 9223372036854775807 {\n", ind, prefix, f.Name)
 		fmt.Fprintf(buf, "%sreturn nil, fmt.Errorf(\"字段 %%s 超出 int64 范围\", %q)\n", ind2, f.BsonKey)
 		fmt.Fprintf(buf, "%s}\n", ind)
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendInt64Element(%s, %q, int64(%s.%s))\n", ind, dstVar, dstVar, f.BsonKey, prefix, f.Name)
-	case catFloat32:
+	case kindFloat32:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendDoubleElement(%s, %q, float64(%s.%s))\n", ind, dstVar, dstVar, f.BsonKey, prefix, f.Name)
-	case catDateTime:
+	case kindDateTime:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendDateTimeElement(%s, %q, %s.%s.UnixMilli())\n", ind, dstVar, dstVar, f.BsonKey, prefix, f.Name)
-	case catPrimitiveDateTime:
+	case kindPrimitiveDateTime:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendDateTimeElement(%s, %q, int64(%s.%s))\n", ind, dstVar, dstVar, f.BsonKey, prefix, f.Name)
-	case catObjectID:
+	case kindObjectID:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendObjectIDElement(%s, %q, %s.%s)\n", ind, dstVar, dstVar, f.BsonKey, prefix, f.Name)
-	case catBinary:
+	case kindBinary:
 		if f.BinaryIsNative {
 			fmt.Fprintf(buf, "%sif %s.%s == nil {\n", ind, prefix, f.Name)
 			fmt.Fprintf(buf, "%s%s = bsoncore.AppendNullElement(%s, %q)\n", ind+"	", dstVar, dstVar, f.BsonKey)
@@ -861,28 +861,28 @@ func genMarshalField(buf *bytes.Buffer, f *fieldInfo, ind, dstVar, prefix string
 		} else {
 			fmt.Fprintf(buf, "%s%s = bsoncore.AppendBinaryElement(%s, %q, %s.%s.Subtype, %s.%s.Data)\n", ind, dstVar, dstVar, f.BsonKey, prefix, f.Name, prefix, f.Name)
 		}
-	case catRegex:
+	case kindRegex:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendRegexElement(%s, %q, %s.%s.Pattern, %s.%s.Options)\n", ind, dstVar, dstVar, f.BsonKey, prefix, f.Name, prefix, f.Name)
-	case catTimestamp:
+	case kindTimestamp:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendTimestampElement(%s, %q, %s.%s.T, %s.%s.I)\n", ind, dstVar, dstVar, f.BsonKey, prefix, f.Name, prefix, f.Name)
-	case catDecimal128:
+	case kindDecimal128:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendDecimal128Element(%s, %q, %s.%s)\n", ind, dstVar, dstVar, f.BsonKey, prefix, f.Name)
-	case catJavaScript:
+	case kindJavaScript:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendJavaScriptElement(%s, %q, string(%s.%s))\n", ind, dstVar, dstVar, f.BsonKey, prefix, f.Name)
-	case catSymbol:
+	case kindSymbol:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendSymbolElement(%s, %q, string(%s.%s))\n", ind, dstVar, dstVar, f.BsonKey, prefix, f.Name)
-	case catNull:
+	case kindNull:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendNullElement(%s, %q)\n", ind, dstVar, dstVar, f.BsonKey)
-	case catUndefined:
+	case kindUndefined:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendUndefinedElement(%s, %q)\n", ind, dstVar, dstVar, f.BsonKey)
-	case catMinKey:
+	case kindMinKey:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendMinKeyElement(%s, %q)\n", ind, dstVar, dstVar, f.BsonKey)
-	case catMaxKey:
+	case kindMaxKey:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendMaxKeyElement(%s, %q)\n", ind, dstVar, dstVar, f.BsonKey)
-	case catJavaScriptWithScope:
+	case kindJavaScriptWithScope:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendCodeWithScopeElement(%s, %q, %s.%s)\n", ind, dstVar, dstVar, f.BsonKey, prefix, f.Name)
 
-	case catArray:
+	case kindArray:
 		if f.OmitEmpty {
 			// omitempty: len>0 guard already emitted above — just generate the array directly.
 			fmt.Fprintf(buf, "%saIdx, aDst := bsoncore.AppendArrayStart(nil)\n", ind)
@@ -906,7 +906,7 @@ func genMarshalField(buf *bytes.Buffer, f *fieldInfo, ind, dstVar, prefix string
 			fmt.Fprintf(buf, "%s}\n", ind)
 		}
 
-	case catMap:
+	case kindMap:
 		if f.OmitEmpty {
 			// omitempty: len>0 guard already emitted above — just generate the map directly.
 			fmt.Fprintf(buf, "%smIdx, mDst := bsoncore.AppendDocumentStart(nil)\n", ind)
@@ -928,20 +928,20 @@ func genMarshalField(buf *bytes.Buffer, f *fieldInfo, ind, dstVar, prefix string
 			fmt.Fprintf(buf, "%s}\n", ind)
 		}
 
-	case catPrimitiveD, catPrimitiveM:
+	case kindPrimitiveD, kindPrimitiveM:
 		fmt.Fprintf(buf, "%s{\n", ind)
 		fmt.Fprintf(buf, "%ssubBytes, err := bson.Marshal(%s.%s)\n", ind2, prefix, f.Name)
 		fmt.Fprintf(buf, "%sif err != nil { return nil, err }\n", ind2)
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendDocumentElement(%s, %q, subBytes)\n", ind2, dstVar, dstVar, f.BsonKey)
 		fmt.Fprintf(buf, "%s}\n", ind)
-	case catPrimitiveA:
+	case kindPrimitiveA:
 		fmt.Fprintf(buf, "%s{\n", ind)
 		fmt.Fprintf(buf, "%ssubBytes, err := bson.Marshal(%s.%s)\n", ind2, prefix, f.Name)
 		fmt.Fprintf(buf, "%sif err != nil { return nil, err }\n", ind2)
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendArrayElement(%s, %q, subBytes)\n", ind2, dstVar, dstVar, f.BsonKey)
 		fmt.Fprintf(buf, "%s}\n", ind)
 
-	case catStructRef:
+	case kindStructRef:
 		if marshalerTypes[f.StructName] {
 			fmt.Fprintf(buf, "%s{\n", ind)
 			fmt.Fprintf(buf, "%ssubBytes, err := %s.%s.MarshalBSON()\n", ind2, prefix, f.Name)
@@ -962,7 +962,7 @@ func genMarshalField(buf *bytes.Buffer, f *fieldInfo, ind, dstVar, prefix string
 			fmt.Fprintf(buf, "%s}\n", ind)
 		}
 
-	case catAnonStruct:
+	case kindAnonStruct:
 		fmt.Fprintf(buf, "%s{\n", ind)
 		fmt.Fprintf(buf, "%saj, ajDst := bsoncore.AppendDocumentStart(nil)\n", ind2)
 		for _, sf := range f.Fields {
@@ -990,19 +990,19 @@ func genMarshalField(buf *bytes.Buffer, f *fieldInfo, ind, dstVar, prefix string
 
 func writeOmitGuard(buf *bytes.Buffer, f *fieldInfo, ind, prefix string) {
 	switch f.Category {
-	case catString, catArray, catMap, catBinary:
+	case kindString, kindArray, kindMap, kindBinary:
 		fmt.Fprintf(buf, "%sif len(%s.%s) > 0 {\n", ind, prefix, f.Name)
-	case catInt, catInt8, catInt16, catInt32, catInt64, catUint, catUint16, catUint32, catUint64, catByte, catFloat32, catDouble:
+	case kindInt, kindInt8, kindInt16, kindInt32, kindInt64, kindUint, kindUint16, kindUint32, kindUint64, kindByte, kindFloat32, kindDouble:
 		fmt.Fprintf(buf, "%sif %s.%s != 0 {\n", ind, prefix, f.Name)
-	case catBoolean:
+	case kindBoolean:
 		fmt.Fprintf(buf, "%sif %s.%s {\n", ind, prefix, f.Name)
-	case catPointer:
+	case kindPointer:
 		// handled by genMarshalPtr
-	case catDateTime:
+	case kindDateTime:
 		fmt.Fprintf(buf, "%sif !%s.%s.IsZero() {\n", ind, prefix, f.Name)
-	case catPrimitiveDateTime:
+	case kindPrimitiveDateTime:
 		fmt.Fprintf(buf, "%sif %s.%s != 0 {\n", ind, prefix, f.Name)
-	case catStructRef:
+	case kindStructRef:
 		fmt.Fprintf(buf, "%sif true {\n", ind)
 	default:
 		fmt.Fprintf(buf, "%sif true {\n", ind)
@@ -1015,7 +1015,7 @@ func genMarshalPtr(buf *bytes.Buffer, f *fieldInfo, ind, dstVar string, hasNullE
 
 	fmt.Fprintf(buf, "%sif %s.%s != nil {\n", ind, prefix, f.Name)
 
-	if elem.Category == catStructRef {
+	if elem.Category == kindStructRef {
 		if marshalerTypes[elem.StructName] {
 			fmt.Fprintf(buf, "%ssubBytes, err := %s.%s.MarshalBSON()\n", ind2, prefix, f.Name)
 			fmt.Fprintf(buf, "%sif err != nil { return nil, err }\n", ind2)
@@ -1048,39 +1048,39 @@ func genMarshalPtr(buf *bytes.Buffer, f *fieldInfo, ind, dstVar string, hasNullE
 // genMarshalValue generates code for a loop variable value.
 func genMarshalValue(buf *bytes.Buffer, f *fieldInfo, key string, ind, val, dstVar string) {
 	switch f.Category {
-	case catDouble:
+	case kindDouble:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendDoubleElement(%s, %s, %s)\n", ind, dstVar, dstVar, key, val)
-	case catString:
+	case kindString:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendStringElement(%s, %s, %s)\n", ind, dstVar, dstVar, key, val)
-	case catBoolean:
+	case kindBoolean:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendBooleanElement(%s, %s, %s)\n", ind, dstVar, dstVar, key, val)
-	case catInt32:
+	case kindInt32:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendInt32Element(%s, %s, %s)\n", ind, dstVar, dstVar, key, val)
-	case catInt64:
+	case kindInt64:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendInt64Element(%s, %s, %s)\n", ind, dstVar, dstVar, key, val)
-	case catInt, catInt8, catInt16, catUint16, catByte:
+	case kindInt, kindInt8, kindInt16, kindUint16, kindByte:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendInt32Element(%s, %s, int32(%s))\n", ind, dstVar, dstVar, key, val)
-	case catUint:
+	case kindUint:
 		fmt.Fprintf(buf, "%sif uint64(%s) > 9223372036854775807 {\n", ind, val)
 		fmt.Fprintf(buf, "%sreturn nil, fmt.Errorf(\"字段 %%s 超出 int64 范围\", %s)\n", ind+"\t", key)
 		fmt.Fprintf(buf, "%s}\n", ind)
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendInt64Element(%s, %s, int64(%s))\n", ind, dstVar, dstVar, key, val)
-	case catUint32:
+	case kindUint32:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendInt64Element(%s, %s, int64(%s))\n", ind, dstVar, dstVar, key, val)
-	case catUint64:
+	case kindUint64:
 		fmt.Fprintf(buf, "%sif %s > 9223372036854775807 {\n", ind, val)
 		fmt.Fprintf(buf, "%sreturn nil, fmt.Errorf(\"字段 %%s 超出 int64 范围\", %s)\n", ind+"\t", key)
 		fmt.Fprintf(buf, "%s}\n", ind)
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendInt64Element(%s, %s, int64(%s))\n", ind, dstVar, dstVar, key, val)
-	case catFloat32:
+	case kindFloat32:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendDoubleElement(%s, %s, float64(%s))\n", ind, dstVar, dstVar, key, val)
-	case catDateTime:
+	case kindDateTime:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendDateTimeElement(%s, %s, %s.UnixMilli())\n", ind, dstVar, dstVar, key, val)
-	case catPrimitiveDateTime:
+	case kindPrimitiveDateTime:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendDateTimeElement(%s, %s, int64(%s))\n", ind, dstVar, dstVar, key, val)
-	case catObjectID:
+	case kindObjectID:
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendObjectIDElement(%s, %s, %s)\n", ind, dstVar, dstVar, key, val)
-	case catArray:
+	case kindArray:
 		// Bug fix: use a uniquely-named inner dst variable to avoid shadowing the outer aDst.
 		fmt.Fprintf(buf, "%s{\n", ind)
 		fmt.Fprintf(buf, "%sinnerIdx, innerDst := bsoncore.AppendArrayStart(nil)\n", ind+"	")
@@ -1091,13 +1091,13 @@ func genMarshalValue(buf *bytes.Buffer, f *fieldInfo, key string, ind, val, dstV
 		fmt.Fprintf(buf, "%sinnerDst, _ = bsoncore.AppendArrayEnd(innerDst, innerIdx)\n", ind+"	")
 		fmt.Fprintf(buf, "%s%s = bsoncore.AppendArrayElement(%s, %s, innerDst)\n", ind+"	", dstVar, dstVar, key)
 		fmt.Fprintf(buf, "%s}\n", ind)
-	case catBinary:
+	case kindBinary:
 		if f.BinaryIsNative {
 			fmt.Fprintf(buf, "%s%s = bsoncore.AppendBinaryElement(%s, %s, 0, %s)\n", ind, dstVar, dstVar, key, val)
 		} else {
 			fmt.Fprintf(buf, "%s%s = bsoncore.AppendBinaryElement(%s, %s, %s.Subtype, %s.Data)\n", ind, dstVar, dstVar, key, val, val)
 		}
-	case catStructRef:
+	case kindStructRef:
 		fmt.Fprintf(buf, "%s{\n", ind)
 		if marshalerTypes[f.StructName] {
 			fmt.Fprintf(buf, "%ssubBytes, err := (%s).MarshalBSON()\n", ind, val)
@@ -1112,7 +1112,7 @@ func genMarshalValue(buf *bytes.Buffer, f *fieldInfo, key string, ind, val, dstV
 			fmt.Fprintf(buf, "%s%s = bsoncore.AppendDocumentElement(%s, %s, subDst)\n", ind, dstVar, dstVar, key)
 		}
 		fmt.Fprintf(buf, "%s}\n", ind)
-	case catPointer:
+	case kindPointer:
 		fmt.Fprintf(buf, "%sif %s != nil {\n", ind, val)
 		genMarshalValue(buf, f.ElemCat, key, ind+"\t", "(*"+val+")", dstVar)
 		fmt.Fprintf(buf, "%s} else {\n", ind+"\t")
@@ -1236,58 +1236,58 @@ func genUnmarshalCaseBody(buf *bytes.Buffer, f *fieldInfo, ind2 string, valExpr 
 	ind3 := ind2 + "\t"
 
 	switch f.Category {
-	case catDouble:
+	case kindDouble:
 		fmt.Fprintf(buf, "%sz.%s = %s.Double()\n", ind2, f.Name, valExpr)
 
-	case catString:
+	case kindString:
 		fmt.Fprintf(buf, "%sz.%s = %s.StringValue()\n", ind2, f.Name, valExpr)
 
-	case catBoolean:
+	case kindBoolean:
 		fmt.Fprintf(buf, "%sz.%s = %s.Boolean()\n", ind2, f.Name, valExpr)
 
-	case catInt32:
+	case kindInt32:
 		fmt.Fprintf(buf, "%sz.%s = %s.Int32()\n", ind2, f.Name, valExpr)
 
-	case catInt64:
+	case kindInt64:
 		fmt.Fprintf(buf, "%sz.%s = %s.AsInt64()\n", ind2, f.Name, valExpr)
 
-	case catInt:
+	case kindInt:
 		fmt.Fprintf(buf, "%sz.%s = int(%s.AsInt64())\n", ind2, f.Name, valExpr)
 
-	case catInt8:
+	case kindInt8:
 		fmt.Fprintf(buf, "%sz.%s = int8(%s.AsInt64())\n", ind2, f.Name, valExpr)
 
-	case catInt16:
+	case kindInt16:
 		fmt.Fprintf(buf, "%sz.%s = int16(%s.AsInt64())\n", ind2, f.Name, valExpr)
 
-	case catUint:
+	case kindUint:
 		fmt.Fprintf(buf, "%sz.%s = uint(%s.AsInt64())\n", ind2, f.Name, valExpr)
 
-	case catUint16:
+	case kindUint16:
 		fmt.Fprintf(buf, "%sz.%s = uint16(%s.AsInt64())\n", ind2, f.Name, valExpr)
 
-	case catUint32:
+	case kindUint32:
 		fmt.Fprintf(buf, "%sz.%s = uint32(%s.AsInt64())\n", ind2, f.Name, valExpr)
 
-	case catUint64:
+	case kindUint64:
 		fmt.Fprintf(buf, "%sz.%s = uint64(%s.AsInt64())\n", ind2, f.Name, valExpr)
 
-	case catByte:
+	case kindByte:
 		fmt.Fprintf(buf, "%sz.%s = byte(%s.AsInt64())\n", ind2, f.Name, valExpr)
 
-	case catFloat32:
+	case kindFloat32:
 		fmt.Fprintf(buf, "%sz.%s = float32(%s.Double())\n", ind2, f.Name, valExpr)
 
-	case catDateTime:
+	case kindDateTime:
 		fmt.Fprintf(buf, "%sz.%s = primitive.DateTime(%s.DateTime()).Time()\n", ind2, f.Name, valExpr)
 
-	case catPrimitiveDateTime:
+	case kindPrimitiveDateTime:
 		fmt.Fprintf(buf, "%sz.%s = primitive.DateTime(%s.DateTime())\n", ind2, f.Name, valExpr)
 
-	case catObjectID:
+	case kindObjectID:
 		fmt.Fprintf(buf, "%sz.%s = %s.ObjectID()\n", ind2, f.Name, valExpr)
 
-	case catBinary:
+	case kindBinary:
 		if f.BinaryIsNative {
 			fmt.Fprintf(buf, "%sif %s.Type == 0x0A {\n", ind2, valExpr)
 
@@ -1300,36 +1300,36 @@ func genUnmarshalCaseBody(buf *bytes.Buffer, f *fieldInfo, ind2 string, valExpr 
 			fmt.Fprintf(buf, "%ssubtype, data, _ := %s.BinaryOK(); z.%s = primitive.Binary{Subtype: subtype, Data: data}\n", ind2, valExpr, f.Name)
 
 		}
-	case catRegex:
+	case kindRegex:
 		fmt.Fprintf(buf, "%spattern, options := %s.Regex(); z.%s = primitive.Regex{Pattern: pattern, Options: options}\n", ind2, valExpr, f.Name)
 
-	case catTimestamp:
+	case kindTimestamp:
 		fmt.Fprintf(buf, "%st, i := %s.Timestamp(); z.%s = primitive.Timestamp{T: t, I: i}\n", ind2, valExpr, f.Name)
 
-	case catDecimal128:
+	case kindDecimal128:
 		fmt.Fprintf(buf, "%sz.%s = %s.Decimal128()\n", ind2, f.Name, valExpr)
 
-	case catJavaScript:
+	case kindJavaScript:
 		fmt.Fprintf(buf, "%sz.%s = primitive.JavaScript(%s.JavaScript())\n", ind2, f.Name, valExpr)
 
-	case catSymbol:
+	case kindSymbol:
 		fmt.Fprintf(buf, "%sz.%s = primitive.Symbol(%s.Symbol())\n", ind2, f.Name, valExpr)
 
-	case catNull:
+	case kindNull:
 		fmt.Fprintf(buf, "%sz.%s = primitive.Null{}\n", ind2, f.Name)
-	case catUndefined:
+	case kindUndefined:
 		fmt.Fprintf(buf, "%sz.%s = primitive.Undefined{}\n", ind2, f.Name)
-	case catMinKey:
+	case kindMinKey:
 		fmt.Fprintf(buf, "%sz.%s = primitive.MinKey{}\n", ind2, f.Name)
-	case catMaxKey:
+	case kindMaxKey:
 		fmt.Fprintf(buf, "%sz.%s = primitive.MaxKey{}\n", ind2, f.Name)
-	case catJavaScriptWithScope:
+	case kindJavaScriptWithScope:
 		fmt.Fprintf(buf, "%scode, scope := %s.CodeWithScope(); z.%s = primitive.CodeWithScope{Code: primitive.JavaScript(code), Scope: scope}\n", ind2, valExpr, f.Name)
 
-	case catPointer:
+	case kindPointer:
 		genUnmarshalPtr(buf, f, ind2, ind3, valExpr)
 
-	case catArray:
+	case kindArray:
 		fmt.Fprintf(buf, "%s{\n", ind2)
 		fmt.Fprintf(buf, "%sif %s.Type == 0x0A {\n", ind3, valExpr)
 
@@ -1347,7 +1347,7 @@ func genUnmarshalCaseBody(buf *bytes.Buffer, f *fieldInfo, ind2 string, valExpr 
 		fmt.Fprintf(buf, "%s}\n", ind3)
 		fmt.Fprintf(buf, "%s}\n", ind2)
 
-	case catMap:
+	case kindMap:
 		fmt.Fprintf(buf, "%s{\n", ind2)
 		fmt.Fprintf(buf, "%sif %s.Type == 0x0A {\n", ind3, valExpr)
 
@@ -1365,7 +1365,7 @@ func genUnmarshalCaseBody(buf *bytes.Buffer, f *fieldInfo, ind2 string, valExpr 
 		fmt.Fprintf(buf, "%s}\n", ind3)
 		fmt.Fprintf(buf, "%s}\n", ind2)
 
-	case catPrimitiveD, catPrimitiveM:
+	case kindPrimitiveD, kindPrimitiveM:
 		fmt.Fprintf(buf, "%s{\n", ind2)
 		fmt.Fprintf(buf, "%ssubBytes, ok := %s.DocumentOK()\n", ind3, valExpr)
 
@@ -1373,7 +1373,7 @@ func genUnmarshalCaseBody(buf *bytes.Buffer, f *fieldInfo, ind2 string, valExpr 
 		fmt.Fprintf(buf, "%serr = bson.Unmarshal(subBytes, &z.%s)\n", ind3, f.Name)
 		fmt.Fprintf(buf, "%sif err != nil { return err }\n", ind3)
 		fmt.Fprintf(buf, "%s}\n", ind2)
-	case catPrimitiveA:
+	case kindPrimitiveA:
 		fmt.Fprintf(buf, "%s{\n", ind2)
 		fmt.Fprintf(buf, "%sarrBytes, ok := %s.ArrayOK()\n", ind3, valExpr)
 
@@ -1382,7 +1382,7 @@ func genUnmarshalCaseBody(buf *bytes.Buffer, f *fieldInfo, ind2 string, valExpr 
 		fmt.Fprintf(buf, "%sif err != nil { return err }\n", ind3)
 		fmt.Fprintf(buf, "%s}\n", ind2)
 
-	case catStructRef:
+	case kindStructRef:
 		fmt.Fprintf(buf, "%s{\n", ind2)
 		if unmarshalerTypes[f.StructName] {
 			fmt.Fprintf(buf, "%ssubBytes, ok := %s.DocumentOK()\n", ind3, valExpr)
@@ -1393,7 +1393,7 @@ func genUnmarshalCaseBody(buf *bytes.Buffer, f *fieldInfo, ind2 string, valExpr 
 			genUnmarshalStructValue(buf, f.Fields, valExpr, "z."+f.Name, ind3, f.BsonKey)
 		}
 		fmt.Fprintf(buf, "%s}\n", ind2)
-	case catAnonStruct:
+	case kindAnonStruct:
 		fmt.Fprintf(buf, "%s{\n", ind2)
 		fmt.Fprintf(buf, "%ssubBytes, ok := %s.DocumentOK()\n", ind3, valExpr)
 
@@ -1444,41 +1444,41 @@ func genUnmarshalStructValue(buf *bytes.Buffer, fields []fieldInfo, valueExpr, t
 
 func genUnmarshalAssign(buf *bytes.Buffer, f *fieldInfo, valueExpr, targetExpr, ind, key string) {
 	switch f.Category {
-	case catDouble:
+	case kindDouble:
 		fmt.Fprintf(buf, "%s%s = %s.Double()\n", ind, targetExpr, valueExpr)
-	case catString:
+	case kindString:
 		fmt.Fprintf(buf, "%s%s = %s.StringValue()\n", ind, targetExpr, valueExpr)
-	case catBoolean:
+	case kindBoolean:
 		fmt.Fprintf(buf, "%s%s = %s.Boolean()\n", ind, targetExpr, valueExpr)
-	case catInt32:
+	case kindInt32:
 		fmt.Fprintf(buf, "%s%s = %s.Int32()\n", ind, targetExpr, valueExpr)
-	case catInt64:
+	case kindInt64:
 		fmt.Fprintf(buf, "%s%s = %s.AsInt64()\n", ind, targetExpr, valueExpr)
-	case catInt:
+	case kindInt:
 		fmt.Fprintf(buf, "%s%s = int(%s.AsInt64())\n", ind, targetExpr, valueExpr)
-	case catInt8:
+	case kindInt8:
 		fmt.Fprintf(buf, "%s%s = int8(%s.AsInt64())\n", ind, targetExpr, valueExpr)
-	case catInt16:
+	case kindInt16:
 		fmt.Fprintf(buf, "%s%s = int16(%s.AsInt64())\n", ind, targetExpr, valueExpr)
-	case catUint:
+	case kindUint:
 		fmt.Fprintf(buf, "%s%s = uint(%s.AsInt64())\n", ind, targetExpr, valueExpr)
-	case catUint16:
+	case kindUint16:
 		fmt.Fprintf(buf, "%s%s = uint16(%s.AsInt64())\n", ind, targetExpr, valueExpr)
-	case catUint32:
+	case kindUint32:
 		fmt.Fprintf(buf, "%s%s = uint32(%s.AsInt64())\n", ind, targetExpr, valueExpr)
-	case catUint64:
+	case kindUint64:
 		fmt.Fprintf(buf, "%s%s = uint64(%s.AsInt64())\n", ind, targetExpr, valueExpr)
-	case catByte:
+	case kindByte:
 		fmt.Fprintf(buf, "%s%s = byte(%s.AsInt64())\n", ind, targetExpr, valueExpr)
-	case catFloat32:
+	case kindFloat32:
 		fmt.Fprintf(buf, "%s%s = float32(%s.Double())\n", ind, targetExpr, valueExpr)
-	case catDateTime:
+	case kindDateTime:
 		fmt.Fprintf(buf, "%s%s = primitive.DateTime(%s.DateTime()).Time()\n", ind, targetExpr, valueExpr)
-	case catPrimitiveDateTime:
+	case kindPrimitiveDateTime:
 		fmt.Fprintf(buf, "%s%s = primitive.DateTime(%s.DateTime())\n", ind, targetExpr, valueExpr)
-	case catObjectID:
+	case kindObjectID:
 		fmt.Fprintf(buf, "%s%s = %s.ObjectID()\n", ind, targetExpr, valueExpr)
-	case catBinary:
+	case kindBinary:
 		if f.BinaryIsNative {
 			fmt.Fprintf(buf, "%sif %s.Type == 0x0A {\n", ind, valueExpr)
 			fmt.Fprintf(buf, "%s%s = nil\n", ind+"\t", targetExpr)
@@ -1488,7 +1488,7 @@ func genUnmarshalAssign(buf *bytes.Buffer, f *fieldInfo, valueExpr, targetExpr, 
 		} else {
 			fmt.Fprintf(buf, "%ssubtype, data, _ := %s.BinaryOK(); %s = primitive.Binary{Subtype: subtype, Data: data}\n", ind, valueExpr, targetExpr)
 		}
-	case catStructRef:
+	case kindStructRef:
 		if unmarshalerTypes[f.StructName] {
 			fmt.Fprintf(buf, "%ssubBytes, ok := %s.DocumentOK()\n", ind, valueExpr)
 			fmt.Fprintf(buf, "%sif !ok { return fmt.Errorf(%q, %q) }\n", ind, "字段 %s 不是文档类型", key)
@@ -1507,57 +1507,57 @@ func genAnonFieldRead(buf *bytes.Buffer, sf *fieldInfo, ind, parentName string) 
 	fmt.Fprintf(buf, "%scase %q:\n", ind, sf.BsonKey)
 	prefix := parentName + "." + sf.Name
 	switch sf.Category {
-	case catDouble:
+	case kindDouble:
 		fmt.Fprintf(buf, "%sz.%s = se.Value().Double()\n", ind+"\t", prefix)
-	case catString:
+	case kindString:
 		fmt.Fprintf(buf, "%sz.%s = se.Value().StringValue()\n", ind+"\t", prefix)
-	case catBoolean:
+	case kindBoolean:
 		fmt.Fprintf(buf, "%sz.%s = se.Value().Boolean()\n", ind+"\t", prefix)
-	case catInt32:
+	case kindInt32:
 		fmt.Fprintf(buf, "%sz.%s = se.Value().Int32()\n", ind+"\t", prefix)
-	case catInt64:
+	case kindInt64:
 		fmt.Fprintf(buf, "%sz.%s = se.Value().AsInt64()\n", ind+"\t", prefix)
-	case catInt:
+	case kindInt:
 		fmt.Fprintf(buf, "%sz.%s = int(se.Value().AsInt64())\n", ind+"\t", prefix)
-	case catInt8:
+	case kindInt8:
 		fmt.Fprintf(buf, "%sz.%s = int8(se.Value().AsInt64())\n", ind+"\t", prefix)
-	case catInt16:
+	case kindInt16:
 		fmt.Fprintf(buf, "%sz.%s = int16(se.Value().AsInt64())\n", ind+"\t", prefix)
-	case catUint:
+	case kindUint:
 		fmt.Fprintf(buf, "%sz.%s = uint(se.Value().AsInt64())\n", ind+"\t", prefix)
-	case catUint16:
+	case kindUint16:
 		fmt.Fprintf(buf, "%sz.%s = uint16(se.Value().AsInt64())\n", ind+"\t", prefix)
-	case catUint32:
+	case kindUint32:
 		fmt.Fprintf(buf, "%sz.%s = uint32(se.Value().AsInt64())\n", ind+"\t", prefix)
-	case catUint64:
+	case kindUint64:
 		fmt.Fprintf(buf, "%sz.%s = uint64(se.Value().AsInt64())\n", ind+"\t", prefix)
-	case catByte:
+	case kindByte:
 		fmt.Fprintf(buf, "%sz.%s = byte(se.Value().AsInt64())\n", ind+"\t", prefix)
-	case catFloat32:
+	case kindFloat32:
 		fmt.Fprintf(buf, "%sz.%s = float32(se.Value().Double())\n", ind+"\t", prefix)
-	case catDateTime:
+	case kindDateTime:
 		fmt.Fprintf(buf, "%sz.%s = primitive.DateTime(se.Value().DateTime()).Time()\n", ind+"\t", prefix)
-	case catPrimitiveDateTime:
+	case kindPrimitiveDateTime:
 		fmt.Fprintf(buf, "%sz.%s = primitive.DateTime(se.Value().DateTime())\n", ind+"\t", prefix)
-	case catObjectID:
+	case kindObjectID:
 		fmt.Fprintf(buf, "%sz.%s = se.Value().ObjectID()\n", ind+"\t", prefix)
-	case catBinary:
+	case kindBinary:
 		if sf.BinaryIsNative {
 			fmt.Fprintf(buf, "%s_, z.%s, _ = se.Value().BinaryOK()\n", ind+"\t", prefix)
 		} else {
 			fmt.Fprintf(buf, "%ssubtype, data, _ := se.Value().BinaryOK(); z.%s = primitive.Binary{Subtype: subtype, Data: data}\n", ind+"\t", prefix)
 		}
-	case catRegex:
+	case kindRegex:
 		fmt.Fprintf(buf, "%spattern, options := se.Value().Regex(); z.%s = primitive.Regex{Pattern: pattern, Options: options}\n", ind+"\t", prefix)
-	case catTimestamp:
+	case kindTimestamp:
 		fmt.Fprintf(buf, "%st, i := se.Value().Timestamp(); z.%s = primitive.Timestamp{T: t, I: i}\n", ind+"\t", prefix)
-	case catDecimal128:
+	case kindDecimal128:
 		fmt.Fprintf(buf, "%sz.%s = se.Value().Decimal128()\n", ind+"\t", prefix)
-	case catJavaScript:
+	case kindJavaScript:
 		fmt.Fprintf(buf, "%sz.%s = primitive.JavaScript(se.Value().JavaScript())\n", ind+"\t", prefix)
-	case catSymbol:
+	case kindSymbol:
 		fmt.Fprintf(buf, "%sz.%s = primitive.Symbol(se.Value().Symbol())\n", ind+"\t", prefix)
-	case catArray:
+	case kindArray:
 		fmt.Fprintf(buf, "%s{\n", ind+"\t")
 		fmt.Fprintf(buf, "%sif se.Value().Type == 0x0A { z.%s = nil; break }\n", ind+"\t\t", prefix)
 		fmt.Fprintf(buf, "%sarrBytes, ok := se.Value().ArrayOK()\n", ind+"\t\t")
@@ -1569,7 +1569,7 @@ func genAnonFieldRead(buf *bytes.Buffer, sf *fieldInfo, ind, parentName string) 
 		genUnmarshalArrayElem(buf, sf.ElemCat, prefix, ind+"\t\t\t")
 		fmt.Fprintf(buf, "%s}\n", ind+"\t\t")
 		fmt.Fprintf(buf, "%s}\n", ind+"\t")
-	case catMap:
+	case kindMap:
 		fmt.Fprintf(buf, "%s{\n", ind+"\t")
 		fmt.Fprintf(buf, "%sif se.Value().Type == 0x0A { z.%s = nil; break }\n", ind+"\t\t", prefix)
 		fmt.Fprintf(buf, "%smapBytes, ok := se.Value().DocumentOK()\n", ind+"\t\t")
@@ -1581,7 +1581,7 @@ func genAnonFieldRead(buf *bytes.Buffer, sf *fieldInfo, ind, parentName string) 
 		genUnmarshalMapElem(buf, sf.ElemCat, prefix, ind+"\t\t\t")
 		fmt.Fprintf(buf, "%s}\n", ind+"\t\t")
 		fmt.Fprintf(buf, "%s}\n", ind+"\t")
-	case catPointer:
+	case kindPointer:
 		// For pointers in anonymous structs, we need special handling
 		// For now, skip with a comment
 		fmt.Fprintf(buf, "%s// pointer fields in anonymous structs not yet supported\n", ind+"\t")
@@ -1600,7 +1600,7 @@ func genUnmarshalPtr(buf *bytes.Buffer, f *fieldInfo, ind2, ind3, valExpr string
 	fmt.Fprintf(buf, "%sz.%s = nil\n", ind3+"\t", f.Name)
 	fmt.Fprintf(buf, "%sbreak\n", ind3+"\t")
 	fmt.Fprintf(buf, "%s}\n", ind3)
-	if elem.Category == catStructRef {
+	if elem.Category == kindStructRef {
 		fmt.Fprintf(buf, "%sval, ok := %s.DocumentOK()\n", ind3, valExpr)
 		fmt.Fprintf(buf, "%sif ok {\n", ind3)
 		fmt.Fprintf(buf, "%sz.%s = new(%s)\n", ind3, f.Name, elem.GoType)
@@ -1616,39 +1616,39 @@ func genUnmarshalPtr(buf *bytes.Buffer, f *fieldInfo, ind2, ind3, valExpr string
 		return
 	}
 	switch elem.Category {
-	case catString:
+	case kindString:
 		fmt.Fprintf(buf, "%stmp := %s.StringValue(); z.%s = &tmp\n", ind3, valExpr, f.Name)
-	case catInt32:
+	case kindInt32:
 		fmt.Fprintf(buf, "%stmp := %s.Int32(); z.%s = &tmp\n", ind3, valExpr, f.Name)
-	case catInt64:
+	case kindInt64:
 		fmt.Fprintf(buf, "%stmp := %s.AsInt64(); z.%s = &tmp\n", ind3, valExpr, f.Name)
-	case catInt:
+	case kindInt:
 		fmt.Fprintf(buf, "%stmp := int(%s.AsInt64()); z.%s = &tmp\n", ind3, valExpr, f.Name)
-	case catInt8:
+	case kindInt8:
 		fmt.Fprintf(buf, "%stmp := int8(%s.AsInt64()); z.%s = &tmp\n", ind3, valExpr, f.Name)
-	case catInt16:
+	case kindInt16:
 		fmt.Fprintf(buf, "%stmp := int16(%s.AsInt64()); z.%s = &tmp\n", ind3, valExpr, f.Name)
-	case catUint:
+	case kindUint:
 		fmt.Fprintf(buf, "%stmp := uint(%s.AsInt64()); z.%s = &tmp\n", ind3, valExpr, f.Name)
-	case catUint16:
+	case kindUint16:
 		fmt.Fprintf(buf, "%stmp := uint16(%s.AsInt64()); z.%s = &tmp\n", ind3, valExpr, f.Name)
-	case catUint32:
+	case kindUint32:
 		fmt.Fprintf(buf, "%stmp := uint32(%s.AsInt64()); z.%s = &tmp\n", ind3, valExpr, f.Name)
-	case catUint64:
+	case kindUint64:
 		fmt.Fprintf(buf, "%stmp := uint64(%s.AsInt64()); z.%s = &tmp\n", ind3, valExpr, f.Name)
-	case catByte:
+	case kindByte:
 		fmt.Fprintf(buf, "%stmp := byte(%s.AsInt64()); z.%s = &tmp\n", ind3, valExpr, f.Name)
-	case catBoolean:
+	case kindBoolean:
 		fmt.Fprintf(buf, "%stmp := %s.Boolean(); z.%s = &tmp\n", ind3, valExpr, f.Name)
-	case catDouble:
+	case kindDouble:
 		fmt.Fprintf(buf, "%stmp := %s.Double(); z.%s = &tmp\n", ind3, valExpr, f.Name)
-	case catFloat32:
+	case kindFloat32:
 		fmt.Fprintf(buf, "%stmp := float32(%s.Double()); z.%s = &tmp\n", ind3, valExpr, f.Name)
-	case catDateTime:
+	case kindDateTime:
 		fmt.Fprintf(buf, "%stmp := primitive.DateTime(%s.DateTime()).Time(); z.%s = &tmp\n", ind3, valExpr, f.Name)
-	case catPrimitiveDateTime:
+	case kindPrimitiveDateTime:
 		fmt.Fprintf(buf, "%stmp := primitive.DateTime(%s.DateTime()); z.%s = &tmp\n", ind3, valExpr, f.Name)
-	case catObjectID:
+	case kindObjectID:
 		fmt.Fprintf(buf, "%stmp := %s.ObjectID(); z.%s = &tmp\n", ind3, valExpr, f.Name)
 	default:
 		fmt.Fprintf(buf, "%sz.%s = nil\n", ind3, f.Name)
@@ -1658,41 +1658,41 @@ func genUnmarshalPtr(buf *bytes.Buffer, f *fieldInfo, ind2, ind3, valExpr string
 
 func genUnmarshalArrayElem(buf *bytes.Buffer, elem *fieldInfo, fieldName, ind string) {
 	switch elem.Category {
-	case catInt32:
+	case kindInt32:
 		fmt.Fprintf(buf, "%sz.%s = append(z.%s, ae.Value().Int32())\n", ind, fieldName, fieldName)
-	case catInt64:
+	case kindInt64:
 		fmt.Fprintf(buf, "%sz.%s = append(z.%s, ae.Value().Int64())\n", ind, fieldName, fieldName)
-	case catString:
+	case kindString:
 		fmt.Fprintf(buf, "%sz.%s = append(z.%s, ae.Value().StringValue())\n", ind, fieldName, fieldName)
-	case catDouble:
+	case kindDouble:
 		fmt.Fprintf(buf, "%sz.%s = append(z.%s, ae.Value().Double())\n", ind, fieldName, fieldName)
-	case catBoolean:
+	case kindBoolean:
 		fmt.Fprintf(buf, "%sz.%s = append(z.%s, ae.Value().Boolean())\n", ind, fieldName, fieldName)
-	case catInt:
+	case kindInt:
 		fmt.Fprintf(buf, "%sz.%s = append(z.%s, int(ae.Value().AsInt64()))\n", ind, fieldName, fieldName)
-	case catInt8:
+	case kindInt8:
 		fmt.Fprintf(buf, "%sz.%s = append(z.%s, int8(ae.Value().AsInt64()))\n", ind, fieldName, fieldName)
-	case catInt16:
+	case kindInt16:
 		fmt.Fprintf(buf, "%sz.%s = append(z.%s, int16(ae.Value().AsInt64()))\n", ind, fieldName, fieldName)
-	case catUint:
+	case kindUint:
 		fmt.Fprintf(buf, "%sz.%s = append(z.%s, uint(ae.Value().AsInt64()))\n", ind, fieldName, fieldName)
-	case catUint16:
+	case kindUint16:
 		fmt.Fprintf(buf, "%sz.%s = append(z.%s, uint16(ae.Value().AsInt64()))\n", ind, fieldName, fieldName)
-	case catUint32:
+	case kindUint32:
 		fmt.Fprintf(buf, "%sz.%s = append(z.%s, uint32(ae.Value().AsInt64()))\n", ind, fieldName, fieldName)
-	case catUint64:
+	case kindUint64:
 		fmt.Fprintf(buf, "%sz.%s = append(z.%s, uint64(ae.Value().AsInt64()))\n", ind, fieldName, fieldName)
-	case catByte:
+	case kindByte:
 		fmt.Fprintf(buf, "%sz.%s = append(z.%s, byte(ae.Value().AsInt64()))\n", ind, fieldName, fieldName)
-	case catFloat32:
+	case kindFloat32:
 		fmt.Fprintf(buf, "%sz.%s = append(z.%s, float32(ae.Value().Double()))\n", ind, fieldName, fieldName)
-	case catDateTime:
+	case kindDateTime:
 		fmt.Fprintf(buf, "%sz.%s = append(z.%s, primitive.DateTime(ae.Value().DateTime()).Time())\n", ind, fieldName, fieldName)
-	case catPrimitiveDateTime:
+	case kindPrimitiveDateTime:
 		fmt.Fprintf(buf, "%sz.%s = append(z.%s, primitive.DateTime(ae.Value().DateTime()))\n", ind, fieldName, fieldName)
-	case catObjectID:
+	case kindObjectID:
 		fmt.Fprintf(buf, "%sz.%s = append(z.%s, ae.Value().ObjectID())\n", ind, fieldName, fieldName)
-	case catStructRef:
+	case kindStructRef:
 		fmt.Fprintf(buf, "%s{\n", ind)
 		fmt.Fprintf(buf, "%ssubBytes, ok := ae.Value().DocumentOK()\n", ind+"\t")
 		fmt.Fprintf(buf, "%sif !ok { return fmt.Errorf(\"数组元素不是文档类型\") }\n", ind+"\t")
@@ -1704,9 +1704,9 @@ func genUnmarshalArrayElem(buf *bytes.Buffer, elem *fieldInfo, fieldName, ind st
 		}
 		fmt.Fprintf(buf, "%sz.%s = append(z.%s, subItem)\n", ind, fieldName, fieldName)
 		fmt.Fprintf(buf, "%s}\n", ind)
-	case catPointer:
+	case kindPointer:
 		// Bug fix: []*KnownStruct — pointer to a structRef inside a slice.
-		if elem.ElemCat != nil && elem.ElemCat.Category == catStructRef {
+		if elem.ElemCat != nil && elem.ElemCat.Category == kindStructRef {
 			fmt.Fprintf(buf, "%s{\n", ind)
 			fmt.Fprintf(buf, "%sif ae.Value().Type == 0x0A {\n", ind+"\t")
 			fmt.Fprintf(buf, "%sz.%s = append(z.%s, nil)\n", ind+"\t\t", fieldName, fieldName)
@@ -1732,6 +1732,44 @@ func genUnmarshalArrayElem(buf *bytes.Buffer, elem *fieldInfo, fieldName, ind st
 			fmt.Fprintf(buf, "%sz.%s = append(z.%s, subItem)\n", ind, fieldName, fieldName)
 			fmt.Fprintf(buf, "%s}\n", ind)
 		}
+		case kindArray:
+		// Inner slice element — pre-allocate and inline parse
+		subArrBytes := nextTmp("subArrBytes")
+		subArrOK := nextTmp("subArrOK")
+		subArrElems := nextTmp("subArrElems")
+		subArrErr := nextTmp("subArrErr")
+		fmt.Fprintf(buf, "%s{\n", ind)
+		fmt.Fprintf(buf, "%s%s, %s := ae.Value().ArrayOK()\n", ind+"\t", subArrBytes, subArrOK)
+		fmt.Fprintf(buf, "%sif !%s { return fmt.Errorf(\"数组元素不是数组类型\") }\n", ind+"\t", subArrOK)
+		fmt.Fprintf(buf, "%s%s, %s := bsoncore.Document(%s).Elements()\n", ind+"\t", subArrElems, subArrErr, subArrBytes)
+		fmt.Fprintf(buf, "%sif %s != nil { return %s }\n", ind+"\t", subArrErr, subArrErr)
+		subItem := nextTmp("subItem")
+		fmt.Fprintf(buf, "%s%s := make(%s, 0, len(%s))\n", ind+"\t", subItem, elem.GoType, subArrElems)
+		fmt.Fprintf(buf, "%sfor _, sae := range %s {\n", ind+"\t", subArrElems)
+		genAppendValue(buf, elem.ElemCat, subItem, "sae.Value()", ind+"\t\t")
+		fmt.Fprintf(buf, "%s}\n", ind+"\t")
+		fmt.Fprintf(buf, "%sz.%s = append(z.%s, %s)\n", ind, fieldName, fieldName, subItem)
+		fmt.Fprintf(buf, "%s}\n", ind)
+
+	case kindMap:
+		// Inner map element — pre-allocate and inline parse
+		subMapBytes := nextTmp("subMapBytes")
+		subMapOK := nextTmp("subMapOK")
+		subMapElems := nextTmp("subMapElems")
+		subMapErr := nextTmp("subMapErr")
+		fmt.Fprintf(buf, "%s{\n", ind)
+		fmt.Fprintf(buf, "%s%s, %s := ae.Value().DocumentOK()\n", ind+"\t", subMapBytes, subMapOK)
+		fmt.Fprintf(buf, "%sif !%s { return fmt.Errorf(\"数组元素不是文档类型\") }\n", ind+"\t", subMapOK)
+		fmt.Fprintf(buf, "%s%s, %s := bsoncore.Document(%s).Elements()\n", ind+"\t", subMapElems, subMapErr, subMapBytes)
+		fmt.Fprintf(buf, "%sif %s != nil { return %s }\n", ind+"\t", subMapErr, subMapErr)
+		subItem := nextTmp("subItem")
+		fmt.Fprintf(buf, "%s%s := make(%s, len(%s))\n", ind+"\t", subItem, elem.GoType, subMapElems)
+		fmt.Fprintf(buf, "%sfor _, sme := range %s {\n", ind+"\t", subMapElems)
+		genMapAssignValue(buf, elem.ElemCat, subItem, "sme.Value()", "sme.Key()", ind+"\t\t")
+		fmt.Fprintf(buf, "%s}\n", ind+"\t")
+		fmt.Fprintf(buf, "%sz.%s = append(z.%s, %s)\n", ind, fieldName, fieldName, subItem)
+		fmt.Fprintf(buf, "%s}\n", ind)
+
 	default:
 		fmt.Fprintf(buf, "%s{\n", ind)
 		fmt.Fprintf(buf, "%ssubBytes, ok := ae.Value().DocumentOK()\n", ind+"\t")
@@ -1743,43 +1781,143 @@ func genUnmarshalArrayElem(buf *bytes.Buffer, elem *fieldInfo, fieldName, ind st
 	}
 }
 
+
+// genAppendValue generates "target = append(target, value)" for a scalar value expression.
+// Used for inlining inner array/map element parsing with pre-allocation.
+func genAppendValue(buf *bytes.Buffer, elem *fieldInfo, target, valExpr, ind string) {
+	switch elem.Category {
+	case kindInt32:
+		fmt.Fprintf(buf, "%s%s = append(%s, %s.Int32())\n", ind, target, target, valExpr)
+	case kindInt64:
+		fmt.Fprintf(buf, "%s%s = append(%s, %s.AsInt64())\n", ind, target, target, valExpr)
+	case kindString:
+		fmt.Fprintf(buf, "%s%s = append(%s, %s.StringValue())\n", ind, target, target, valExpr)
+	case kindDouble:
+		fmt.Fprintf(buf, "%s%s = append(%s, %s.Double())\n", ind, target, target, valExpr)
+	case kindBoolean:
+		fmt.Fprintf(buf, "%s%s = append(%s, %s.Boolean())\n", ind, target, target, valExpr)
+	case kindInt:
+		fmt.Fprintf(buf, "%s%s = append(%s, int(%s.AsInt64()))\n", ind, target, target, valExpr)
+	case kindInt8:
+		fmt.Fprintf(buf, "%s%s = append(%s, int8(%s.AsInt64()))\n", ind, target, target, valExpr)
+	case kindInt16:
+		fmt.Fprintf(buf, "%s%s = append(%s, int16(%s.AsInt64()))\n", ind, target, target, valExpr)
+	case kindUint:
+		fmt.Fprintf(buf, "%s%s = append(%s, uint(%s.AsInt64()))\n", ind, target, target, valExpr)
+	case kindUint16:
+		fmt.Fprintf(buf, "%s%s = append(%s, uint16(%s.AsInt64()))\n", ind, target, target, valExpr)
+	case kindUint32:
+		fmt.Fprintf(buf, "%s%s = append(%s, uint32(%s.AsInt64()))\n", ind, target, target, valExpr)
+	case kindUint64:
+		fmt.Fprintf(buf, "%s%s = append(%s, uint64(%s.AsInt64()))\n", ind, target, target, valExpr)
+	case kindByte:
+		fmt.Fprintf(buf, "%s%s = append(%s, byte(%s.AsInt64()))\n", ind, target, target, valExpr)
+	case kindFloat32:
+		fmt.Fprintf(buf, "%s%s = append(%s, float32(%s.Double()))\n", ind, target, target, valExpr)
+	case kindDateTime:
+		fmt.Fprintf(buf, "%s%s = append(%s, primitive.DateTime(%s.DateTime()).Time())\n", ind, target, target, valExpr)
+	case kindPrimitiveDateTime:
+		fmt.Fprintf(buf, "%s%s = append(%s, primitive.DateTime(%s.DateTime()))\n", ind, target, target, valExpr)
+	case kindObjectID:
+		fmt.Fprintf(buf, "%s%s = append(%s, %s.ObjectID())\n", ind, target, target, valExpr)
+	default:
+		// For complex types (arrays inside arrays etc.), fall back to bson.Unmarshal
+		fmt.Fprintf(buf, "%s{\n", ind)
+		fmt.Fprintf(buf, "%ssubBytes, ok := %s.DocumentOK()\n", ind+"\t", valExpr)
+		fmt.Fprintf(buf, "%sif !ok { return fmt.Errorf(\"数组元素不是文档类型\") }\n", ind+"\t")
+		fmt.Fprintf(buf, "%svar subItem %s\n", ind+"\t", elem.GoType)
+		fmt.Fprintf(buf, "%sif err := bson.Unmarshal(subBytes, &subItem); err != nil { return err }\n", ind+"\t")
+		fmt.Fprintf(buf, "%s%s = append(%s, subItem)\n", ind, target, target)
+		fmt.Fprintf(buf, "%s}\n", ind)
+	}
+}
+
+// genMapAssignValue generates "target[key] = value" for a map value expression.
+// Used for inlining inner map element parsing with pre-allocation.
+func genMapAssignValue(buf *bytes.Buffer, elem *fieldInfo, target, valExpr, keyExpr, ind string) {
+	switch elem.Category {
+	case kindInt32:
+		fmt.Fprintf(buf, "%s%s[%s] = %s.Int32()\n", ind, target, keyExpr, valExpr)
+	case kindInt64:
+		fmt.Fprintf(buf, "%s%s[%s] = %s.AsInt64()\n", ind, target, keyExpr, valExpr)
+	case kindString:
+		fmt.Fprintf(buf, "%s%s[%s] = %s.StringValue()\n", ind, target, keyExpr, valExpr)
+	case kindDouble:
+		fmt.Fprintf(buf, "%s%s[%s] = %s.Double()\n", ind, target, keyExpr, valExpr)
+	case kindBoolean:
+		fmt.Fprintf(buf, "%s%s[%s] = %s.Boolean()\n", ind, target, keyExpr, valExpr)
+	case kindInt:
+		fmt.Fprintf(buf, "%s%s[%s] = int(%s.AsInt64())\n", ind, target, keyExpr, valExpr)
+	case kindInt8:
+		fmt.Fprintf(buf, "%s%s[%s] = int8(%s.AsInt64())\n", ind, target, keyExpr, valExpr)
+	case kindInt16:
+		fmt.Fprintf(buf, "%s%s[%s] = int16(%s.AsInt64())\n", ind, target, keyExpr, valExpr)
+	case kindUint:
+		fmt.Fprintf(buf, "%s%s[%s] = uint(%s.AsInt64())\n", ind, target, keyExpr, valExpr)
+	case kindUint16:
+		fmt.Fprintf(buf, "%s%s[%s] = uint16(%s.AsInt64())\n", ind, target, keyExpr, valExpr)
+	case kindUint32:
+		fmt.Fprintf(buf, "%s%s[%s] = uint32(%s.AsInt64())\n", ind, target, keyExpr, valExpr)
+	case kindUint64:
+		fmt.Fprintf(buf, "%s%s[%s] = uint64(%s.AsInt64())\n", ind, target, keyExpr, valExpr)
+	case kindByte:
+		fmt.Fprintf(buf, "%s%s[%s] = byte(%s.AsInt64())\n", ind, target, keyExpr, valExpr)
+	case kindFloat32:
+		fmt.Fprintf(buf, "%s%s[%s] = float32(%s.Double())\n", ind, target, keyExpr, valExpr)
+	case kindDateTime:
+		fmt.Fprintf(buf, "%s%s[%s] = primitive.DateTime(%s.DateTime()).Time()\n", ind, target, keyExpr, valExpr)
+	case kindPrimitiveDateTime:
+		fmt.Fprintf(buf, "%s%s[%s] = primitive.DateTime(%s.DateTime())\n", ind, target, keyExpr, valExpr)
+	case kindObjectID:
+		fmt.Fprintf(buf, "%s%s[%s] = %s.ObjectID()\n", ind, target, keyExpr, valExpr)
+	default:
+		fmt.Fprintf(buf, "%s{\n", ind)
+		fmt.Fprintf(buf, "%ssubBytes, ok := %s.DocumentOK()\n", ind+"\t", valExpr)
+		fmt.Fprintf(buf, "%sif !ok { return fmt.Errorf(\"数组元素不是文档类型\") }\n", ind+"\t")
+		fmt.Fprintf(buf, "%svar subItem %s\n", ind+"\t", elem.GoType)
+		fmt.Fprintf(buf, "%sif err := bson.Unmarshal(subBytes, &subItem); err != nil { return err }\n", ind+"\t")
+		fmt.Fprintf(buf, "%s%s[%s] = subItem\n", ind, target, keyExpr)
+		fmt.Fprintf(buf, "%s}\n", ind)
+	}
+}
+
 func genUnmarshalMapElem(buf *bytes.Buffer, elem *fieldInfo, fieldName, ind string) {
 	switch elem.Category {
-	case catInt32:
+	case kindInt32:
 		fmt.Fprintf(buf, "%sz.%s[me.Key()] = me.Value().Int32()\n", ind, fieldName)
-	case catInt64:
+	case kindInt64:
 		fmt.Fprintf(buf, "%sz.%s[me.Key()] = me.Value().Int64()\n", ind, fieldName)
-	case catString:
+	case kindString:
 		fmt.Fprintf(buf, "%sz.%s[me.Key()] = me.Value().StringValue()\n", ind, fieldName)
-	case catDouble:
+	case kindDouble:
 		fmt.Fprintf(buf, "%sz.%s[me.Key()] = me.Value().Double()\n", ind, fieldName)
-	case catBoolean:
+	case kindBoolean:
 		fmt.Fprintf(buf, "%sz.%s[me.Key()] = me.Value().Boolean()\n", ind, fieldName)
-	case catInt:
+	case kindInt:
 		fmt.Fprintf(buf, "%sz.%s[me.Key()] = int(me.Value().AsInt64())\n", ind, fieldName)
-	case catInt8:
+	case kindInt8:
 		fmt.Fprintf(buf, "%sz.%s[me.Key()] = int8(me.Value().AsInt64())\n", ind, fieldName)
-	case catInt16:
+	case kindInt16:
 		fmt.Fprintf(buf, "%sz.%s[me.Key()] = int16(me.Value().AsInt64())\n", ind, fieldName)
-	case catUint:
+	case kindUint:
 		fmt.Fprintf(buf, "%sz.%s[me.Key()] = uint(me.Value().AsInt64())\n", ind, fieldName)
-	case catUint16:
+	case kindUint16:
 		fmt.Fprintf(buf, "%sz.%s[me.Key()] = uint16(me.Value().AsInt64())\n", ind, fieldName)
-	case catUint32:
+	case kindUint32:
 		fmt.Fprintf(buf, "%sz.%s[me.Key()] = uint32(me.Value().AsInt64())\n", ind, fieldName)
-	case catUint64:
+	case kindUint64:
 		fmt.Fprintf(buf, "%sz.%s[me.Key()] = uint64(me.Value().AsInt64())\n", ind, fieldName)
-	case catByte:
+	case kindByte:
 		fmt.Fprintf(buf, "%sz.%s[me.Key()] = byte(me.Value().AsInt64())\n", ind, fieldName)
-	case catFloat32:
+	case kindFloat32:
 		fmt.Fprintf(buf, "%sz.%s[me.Key()] = float32(me.Value().Double())\n", ind, fieldName)
-	case catDateTime:
+	case kindDateTime:
 		fmt.Fprintf(buf, "%sz.%s[me.Key()] = primitive.DateTime(me.Value().DateTime()).Time()\n", ind, fieldName)
-	case catPrimitiveDateTime:
+	case kindPrimitiveDateTime:
 		fmt.Fprintf(buf, "%sz.%s[me.Key()] = primitive.DateTime(me.Value().DateTime())\n", ind, fieldName)
-	case catObjectID:
+	case kindObjectID:
 		fmt.Fprintf(buf, "%sz.%s[me.Key()] = me.Value().ObjectID()\n", ind, fieldName)
-	case catStructRef:
+	case kindStructRef:
 		fmt.Fprintf(buf, "%s{\n", ind)
 		fmt.Fprintf(buf, "%ssubBytes, ok := me.Value().DocumentOK()\n", ind+"\t")
 		fmt.Fprintf(buf, "%sif !ok { return fmt.Errorf(\"map 元素不是文档类型\") }\n", ind+"\t")
