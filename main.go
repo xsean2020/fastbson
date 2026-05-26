@@ -684,7 +684,8 @@ func nextTmp(prefix string) string {
 
 func buildImportList(structs []structInfo) []string {
 	always := map[string]bool{
-		"go.mongodb.org/mongo-driver/x/bsonx/bsoncore": true,
+		"unsafe": true,
+	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore": true,
 	}
 	needsFmt := false
 	needsStrconv := false
@@ -1150,7 +1151,7 @@ func generateUnmarshal(buf *bytes.Buffer, s *structInfo) {
 }
 
 func genKeyDispatch(buf *bytes.Buffer, fields []fieldInfo, ind string) {
-	fmt.Fprintf(buf, "%sswitch string(keyBytes) {\n", ind)
+	fmt.Fprintf(buf, "%sswitch unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes)) {\n", ind)
 	for _, f := range fields {
 		if f.BsonKey == "" {
 			continue
@@ -1531,13 +1532,13 @@ func genUnmarshalPtr(buf *bytes.Buffer, f *fieldInfo, ind2, ind3, valExpr string
 	fmt.Fprintf(buf, "%sbreak\n", ind3+"\t")
 	fmt.Fprintf(buf, "%s}\n", ind3)
 	if elem.Category == kindStructRef {
-		fmt.Fprintf(buf, "%sval, ok := %s.DocumentOK()\n", ind3, valExpr)
+		fmt.Fprintf(buf, "%sdocVal, ok := %s.DocumentOK()\n", ind3, valExpr)
 		fmt.Fprintf(buf, "%sif ok {\n", ind3)
 		fmt.Fprintf(buf, "%sz.%s = new(%s)\n", ind3, f.Name, elem.GoType)
 		if unmarshalerTypes[elem.StructName] {
-			fmt.Fprintf(buf, "%sif err := z.%s.UnmarshalBSON(val); err != nil { return err }\n", ind3, f.Name)
+			fmt.Fprintf(buf, "%sif err := z.%s.UnmarshalBSON(docVal); err != nil { return err }\n", ind3, f.Name)
 		} else {
-			genUnmarshalStructValue(buf, elem.Fields, "bsoncore.Value{Type: 0x03, Data: val}", "z."+f.Name, ind3, f.BsonKey)
+			genUnmarshalStructValue(buf, elem.Fields, valExpr, "z."+f.Name, ind3, f.BsonKey)
 		}
 		fmt.Fprintf(buf, "%s} else {\n", ind3)
 		fmt.Fprintf(buf, "%sz.%s = nil\n", ind3, f.Name)
@@ -1630,7 +1631,7 @@ func genUnmarshalArrayElem(buf *bytes.Buffer, elem *fieldInfo, fieldName, ind st
 		if unmarshalerTypes[elem.StructName] {
 			fmt.Fprintf(buf, "%sif err := subItem.UnmarshalBSON(subBytes); err != nil { return err }\n", ind+"\t")
 		} else {
-			genUnmarshalStructValue(buf, elem.Fields, "bsoncore.Value{Type: 0x03, Data: subBytes}", "subItem", ind+"\t", "数组元素")
+			genUnmarshalStructValue(buf, elem.Fields, "ae.Value()", "subItem", ind+"\t", "数组元素")
 		}
 		fmt.Fprintf(buf, "%sz.%s = append(z.%s, subItem)\n", ind, fieldName, fieldName)
 		fmt.Fprintf(buf, "%s}\n", ind)
@@ -1647,7 +1648,7 @@ func genUnmarshalArrayElem(buf *bytes.Buffer, elem *fieldInfo, fieldName, ind st
 			if unmarshalerTypes[elem.ElemCat.StructName] {
 				fmt.Fprintf(buf, "%sif err := subItem.UnmarshalBSON(subBytes); err != nil { return err }\n", ind+"\t\t")
 			} else {
-				genUnmarshalStructValue(buf, elem.ElemCat.Fields, "bsoncore.Value{Type: 0x03, Data: subBytes}", "subItem", ind+"\t\t", "数组元素")
+				genUnmarshalStructValue(buf, elem.ElemCat.Fields, "ae.Value()", "subItem", ind+"\t\t", "数组元素")
 			}
 			fmt.Fprintf(buf, "%sz.%s = append(z.%s, subItem)\n", ind+"\t\t", fieldName, fieldName)
 			fmt.Fprintf(buf, "%s}\n", ind+"\t")

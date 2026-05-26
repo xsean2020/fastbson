@@ -7,6 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
 	"strconv"
+	"unsafe"
 )
 
 func (z *FieldSkip) MarshalBSON() ([]byte, error) {
@@ -34,7 +35,7 @@ func (z *FieldSkip) UnmarshalBSON(b []byte) error {
 		val := elem.Value()
 
 		keyBytes := elem.KeyBytes()
-		switch string(keyBytes) {
+		switch unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes)) {
 		case "exported":
 			z.Exported = val.StringValue()
 		case "-":
@@ -67,7 +68,7 @@ func (z *InlineBase) UnmarshalBSON(b []byte) error {
 		val := elem.Value()
 
 		keyBytes := elem.KeyBytes()
-		switch string(keyBytes) {
+		switch unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes)) {
 		case "bf1":
 			z.BaseField1 = val.StringValue()
 		case "bf2":
@@ -101,7 +102,7 @@ func (z *InlineStruct) UnmarshalBSON(b []byte) error {
 		val := elem.Value()
 
 		keyBytes := elem.KeyBytes()
-		switch string(keyBytes) {
+		switch unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes)) {
 		case "own":
 			z.OwnField = val.StringValue()
 		case "bf1":
@@ -135,7 +136,7 @@ func (z *EmbedRef) UnmarshalBSON(b []byte) error {
 		val := elem.Value()
 
 		keyBytes := elem.KeyBytes()
-		switch string(keyBytes) {
+		switch unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes)) {
 		case "name":
 			z.Name = val.StringValue()
 		}
@@ -166,7 +167,7 @@ func (z *EmbedOwner) UnmarshalBSON(b []byte) error {
 		val := elem.Value()
 
 		keyBytes := elem.KeyBytes()
-		switch string(keyBytes) {
+		switch unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes)) {
 		case "name":
 			z.EmbedRef.Name = val.StringValue()
 		case "extra":
@@ -235,7 +236,7 @@ func (z *NestedSlices) UnmarshalBSON(b []byte) error {
 		val := elem.Value()
 
 		keyBytes := elem.KeyBytes()
-		switch string(keyBytes) {
+		switch unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes)) {
 		case "matrix":
 			{
 				if val.Type == 0x0A {
@@ -329,7 +330,7 @@ func (z *PtrItem) UnmarshalBSON(b []byte) error {
 		val := elem.Value()
 
 		keyBytes := elem.KeyBytes()
-		switch string(keyBytes) {
+		switch unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes)) {
 		case "val":
 			z.Val = val.StringValue()
 		}
@@ -379,7 +380,7 @@ func (z *PtrSlice) UnmarshalBSON(b []byte) error {
 		val := elem.Value()
 
 		keyBytes := elem.KeyBytes()
-		switch string(keyBytes) {
+		switch unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes)) {
 		case "items":
 			{
 				if val.Type == 0x0A {
@@ -463,7 +464,7 @@ func (z *AnonymousStruct) UnmarshalBSON(b []byte) error {
 		val := elem.Value()
 
 		keyBytes := elem.KeyBytes()
-		switch string(keyBytes) {
+		switch unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes)) {
 		case "onboarding":
 			{
 				subBytes, ok := val.DocumentOK()
@@ -561,7 +562,7 @@ func (z *IntWidths) UnmarshalBSON(b []byte) error {
 		val := elem.Value()
 
 		keyBytes := elem.KeyBytes()
-		switch string(keyBytes) {
+		switch unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes)) {
 		case "i8":
 			z.I8 = int8(val.AsInt64())
 		case "i16":
@@ -656,7 +657,7 @@ func (z *ZeroValues) UnmarshalBSON(b []byte) error {
 		val := elem.Value()
 
 		keyBytes := elem.KeyBytes()
-		switch string(keyBytes) {
+		switch unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes)) {
 		case "str":
 			z.Str = val.StringValue()
 		case "bool":
@@ -764,7 +765,7 @@ func (z *BattleStats) UnmarshalBSON(b []byte) error {
 		val := elem.Value()
 
 		keyBytes := elem.KeyBytes()
-		switch string(keyBytes) {
+		switch unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes)) {
 		case "wins":
 			z.Wins = val.Int32()
 		case "losses":
@@ -809,7 +810,7 @@ func (z *Bag) UnmarshalBSON(b []byte) error {
 		val := elem.Value()
 
 		keyBytes := elem.KeyBytes()
-		switch string(keyBytes) {
+		switch unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes)) {
 		case "gold":
 			z.Gold = val.AsInt64()
 		case "items":
@@ -1012,7 +1013,7 @@ func (z *Player) UnmarshalBSON(b []byte) error {
 		val := elem.Value()
 
 		keyBytes := elem.KeyBytes()
-		switch string(keyBytes) {
+		switch unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes)) {
 		case "_id":
 			z.ID = val.AsInt64()
 		case "account_id":
@@ -1041,10 +1042,10 @@ func (z *Player) UnmarshalBSON(b []byte) error {
 					z.OfflineFight = nil
 					break
 				}
-				val, ok := val.DocumentOK()
+				docVal, ok := val.DocumentOK()
 				if ok {
 					z.OfflineFight = new(Hero)
-					subBytes11, subOK12 := bsoncore.Value{Type: 0x03, Data: val}.DocumentOK()
+					subBytes11, subOK12 := val.DocumentOK()
 					if !subOK12 {
 						return fmt.Errorf("字段 %s 不是文档类型", "offline_fight")
 					}
@@ -1093,7 +1094,7 @@ func (z *Player) UnmarshalBSON(b []byte) error {
 								return fmt.Errorf("数组元素不是文档类型")
 							}
 							subItem := new(Hero)
-							subBytes16, subOK17 := bsoncore.Value{Type: 0x03, Data: subBytes}.DocumentOK()
+							subBytes16, subOK17 := ae.Value().DocumentOK()
 							if !subOK17 {
 								return fmt.Errorf("字段 %s 不是文档类型", "数组元素")
 							}
@@ -1359,7 +1360,7 @@ func (z *StatueInfo) UnmarshalBSON(b []byte) error {
 		val := elem.Value()
 
 		keyBytes := elem.KeyBytes()
-		switch string(keyBytes) {
+		switch unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes)) {
 		case "c":
 			z.Count = val.Int32()
 		case "active":
@@ -1416,7 +1417,7 @@ func (z *WideStruct) UnmarshalBSON(b []byte) error {
 		val := elem.Value()
 
 		keyBytes := elem.KeyBytes()
-		switch string(keyBytes) {
+		switch unsafe.String(unsafe.SliceData(keyBytes), len(keyBytes)) {
 		case "a":
 			z.A = val.Int32()
 		case "b":
