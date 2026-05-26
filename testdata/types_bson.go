@@ -2,7 +2,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -32,31 +31,14 @@ func (z *FieldSkip) UnmarshalBSON(b []byte) error {
 		}
 		data = rem
 
-		raw := []byte(elem)
 		val := elem.Value()
 
-		// Find key length
-		keyLen := 0
-		for raw[1+keyLen] != 0 {
-			keyLen++
-		}
-		keyBytes := raw[1 : 1+keyLen]
-
-		switch keyLen {
-		case 1:
-			switch uint64(keyBytes[0]) << 0 {
-			case uint64('-') << 0:
-				z.OmitMe = val.StringValue()
-			default:
-			}
-		case 8:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 | uint64(keyBytes[3])<<24 | uint64(keyBytes[4])<<32 | uint64(keyBytes[5])<<40 | uint64(keyBytes[6])<<48 | uint64(keyBytes[7])<<56 {
-			case uint64('e')<<0 | uint64('x')<<8 | uint64('p')<<16 | uint64('o')<<24 | uint64('r')<<32 | uint64('t')<<40 | uint64('e')<<48 | uint64('d')<<56:
-				z.Exported = val.StringValue()
-			default:
-			}
-		default:
-			// unknown key length — skip
+		keyBytes := elem.KeyBytes()
+		switch string(keyBytes) {
+		case "exported":
+			z.Exported = val.StringValue()
+		case "-":
+			z.OmitMe = val.StringValue()
 		}
 	}
 	return nil
@@ -82,27 +64,14 @@ func (z *InlineBase) UnmarshalBSON(b []byte) error {
 		}
 		data = rem
 
-		raw := []byte(elem)
 		val := elem.Value()
 
-		// Find key length
-		keyLen := 0
-		for raw[1+keyLen] != 0 {
-			keyLen++
-		}
-		keyBytes := raw[1 : 1+keyLen]
-
-		switch keyLen {
-		case 3:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 {
-			case uint64('b')<<0 | uint64('f')<<8 | uint64('1')<<16:
-				z.BaseField1 = val.StringValue()
-			case uint64('b')<<0 | uint64('f')<<8 | uint64('2')<<16:
-				z.BaseField2 = int(val.AsInt64())
-			default:
-			}
-		default:
-			// unknown key length — skip
+		keyBytes := elem.KeyBytes()
+		switch string(keyBytes) {
+		case "bf1":
+			z.BaseField1 = val.StringValue()
+		case "bf2":
+			z.BaseField2 = int(val.AsInt64())
 		}
 	}
 	return nil
@@ -129,29 +98,16 @@ func (z *InlineStruct) UnmarshalBSON(b []byte) error {
 		}
 		data = rem
 
-		raw := []byte(elem)
 		val := elem.Value()
 
-		// Find key length
-		keyLen := 0
-		for raw[1+keyLen] != 0 {
-			keyLen++
-		}
-		keyBytes := raw[1 : 1+keyLen]
-
-		switch keyLen {
-		case 3:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 {
-			case uint64('o')<<0 | uint64('w')<<8 | uint64('n')<<16:
-				z.OwnField = val.StringValue()
-			case uint64('b')<<0 | uint64('f')<<8 | uint64('1')<<16:
-				z.Inline.BaseField1 = val.StringValue()
-			case uint64('b')<<0 | uint64('f')<<8 | uint64('2')<<16:
-				z.Inline.BaseField2 = int(val.AsInt64())
-			default:
-			}
-		default:
-			// unknown key length — skip
+		keyBytes := elem.KeyBytes()
+		switch string(keyBytes) {
+		case "own":
+			z.OwnField = val.StringValue()
+		case "bf1":
+			z.Inline.BaseField1 = val.StringValue()
+		case "bf2":
+			z.Inline.BaseField2 = int(val.AsInt64())
 		}
 	}
 	return nil
@@ -176,25 +132,12 @@ func (z *EmbedRef) UnmarshalBSON(b []byte) error {
 		}
 		data = rem
 
-		raw := []byte(elem)
 		val := elem.Value()
 
-		// Find key length
-		keyLen := 0
-		for raw[1+keyLen] != 0 {
-			keyLen++
-		}
-		keyBytes := raw[1 : 1+keyLen]
-
-		switch keyLen {
-		case 4:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 | uint64(keyBytes[3])<<24 {
-			case uint64('n')<<0 | uint64('a')<<8 | uint64('m')<<16 | uint64('e')<<24:
-				z.Name = val.StringValue()
-			default:
-			}
-		default:
-			// unknown key length — skip
+		keyBytes := elem.KeyBytes()
+		switch string(keyBytes) {
+		case "name":
+			z.Name = val.StringValue()
 		}
 	}
 	return nil
@@ -220,31 +163,14 @@ func (z *EmbedOwner) UnmarshalBSON(b []byte) error {
 		}
 		data = rem
 
-		raw := []byte(elem)
 		val := elem.Value()
 
-		// Find key length
-		keyLen := 0
-		for raw[1+keyLen] != 0 {
-			keyLen++
-		}
-		keyBytes := raw[1 : 1+keyLen]
-
-		switch keyLen {
-		case 4:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 | uint64(keyBytes[3])<<24 {
-			case uint64('n')<<0 | uint64('a')<<8 | uint64('m')<<16 | uint64('e')<<24:
-				z.EmbedRef.Name = val.StringValue()
-			default:
-			}
-		case 5:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 | uint64(keyBytes[3])<<24 | uint64(keyBytes[4])<<32 {
-			case uint64('e')<<0 | uint64('x')<<8 | uint64('t')<<16 | uint64('r')<<24 | uint64('a')<<32:
-				z.Extra = val.StringValue()
-			default:
-			}
-		default:
-			// unknown key length — skip
+		keyBytes := elem.KeyBytes()
+		switch string(keyBytes) {
+		case "name":
+			z.EmbedRef.Name = val.StringValue()
+		case "extra":
+			z.Extra = val.StringValue()
 		}
 	}
 	return nil
@@ -306,89 +232,76 @@ func (z *NestedSlices) UnmarshalBSON(b []byte) error {
 		}
 		data = rem
 
-		raw := []byte(elem)
 		val := elem.Value()
 
-		// Find key length
-		keyLen := 0
-		for raw[1+keyLen] != 0 {
-			keyLen++
-		}
-		keyBytes := raw[1 : 1+keyLen]
-
-		switch keyLen {
-		case 6:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 | uint64(keyBytes[3])<<24 | uint64(keyBytes[4])<<32 | uint64(keyBytes[5])<<40 {
-			case uint64('m')<<0 | uint64('a')<<8 | uint64('t')<<16 | uint64('r')<<24 | uint64('i')<<32 | uint64('x')<<40:
-				{
-					if val.Type == 0x0A {
-						z.Matrix = nil
-						break
-					}
-					arrBytes, ok := val.ArrayOK()
-					if !ok {
-						return fmt.Errorf("字段 %s 不是数组类型", "matrix")
-					}
-					arrElems, err := bsoncore.Document(arrBytes).Elements()
-					if err != nil {
-						return err
-					}
-					z.Matrix = make([][]int32, 0, len(arrElems))
-					for _, ae := range arrElems {
-						{
-							subArrBytes1, subArrOK2 := ae.Value().ArrayOK()
-							if !subArrOK2 {
-								return fmt.Errorf("数组元素不是数组类型")
-							}
-							subArrElems3, subArrErr4 := bsoncore.Document(subArrBytes1).Elements()
-							if subArrErr4 != nil {
-								return subArrErr4
-							}
-							subItem5 := make([]int32, 0, len(subArrElems3))
-							for _, sae := range subArrElems3 {
-								subItem5 = append(subItem5, sae.Value().Int32())
-							}
-							z.Matrix = append(z.Matrix, subItem5)
+		keyBytes := elem.KeyBytes()
+		switch string(keyBytes) {
+		case "matrix":
+			{
+				if val.Type == 0x0A {
+					z.Matrix = nil
+					break
+				}
+				arrBytes, ok := val.ArrayOK()
+				if !ok {
+					return fmt.Errorf("字段 %s 不是数组类型", "matrix")
+				}
+				arrElems, err := bsoncore.Document(arrBytes).Elements()
+				if err != nil {
+					return err
+				}
+				z.Matrix = make([][]int32, 0, len(arrElems))
+				for _, ae := range arrElems {
+					{
+						subArrBytes1, subArrOK2 := ae.Value().ArrayOK()
+						if !subArrOK2 {
+							return fmt.Errorf("数组元素不是数组类型")
 						}
+						subArrElems3, subArrErr4 := bsoncore.Document(subArrBytes1).Elements()
+						if subArrErr4 != nil {
+							return subArrErr4
+						}
+						subItem5 := make([]int32, 0, len(subArrElems3))
+						for _, sae := range subArrElems3 {
+							subItem5 = append(subItem5, sae.Value().Int32())
+						}
+						z.Matrix = append(z.Matrix, subItem5)
 					}
 				}
-			case uint64('j')<<0 | uint64('a')<<8 | uint64('g')<<16 | uint64('g')<<24 | uint64('e')<<32 | uint64('d')<<40:
-				{
-					if val.Type == 0x0A {
-						z.Jagged = nil
-						break
-					}
-					arrBytes, ok := val.ArrayOK()
-					if !ok {
-						return fmt.Errorf("字段 %s 不是数组类型", "jagged")
-					}
-					arrElems, err := bsoncore.Document(arrBytes).Elements()
-					if err != nil {
-						return err
-					}
-					z.Jagged = make([][]string, 0, len(arrElems))
-					for _, ae := range arrElems {
-						{
-							subArrBytes6, subArrOK7 := ae.Value().ArrayOK()
-							if !subArrOK7 {
-								return fmt.Errorf("数组元素不是数组类型")
-							}
-							subArrElems8, subArrErr9 := bsoncore.Document(subArrBytes6).Elements()
-							if subArrErr9 != nil {
-								return subArrErr9
-							}
-							subItem10 := make([]string, 0, len(subArrElems8))
-							for _, sae := range subArrElems8 {
-								subItem10 = append(subItem10, sae.Value().StringValue())
-							}
-							z.Jagged = append(z.Jagged, subItem10)
-						}
-					}
-				}
-			default:
 			}
-		default:
-			// unknown key length — skip
+		case "jagged":
+			{
+				if val.Type == 0x0A {
+					z.Jagged = nil
+					break
+				}
+				arrBytes, ok := val.ArrayOK()
+				if !ok {
+					return fmt.Errorf("字段 %s 不是数组类型", "jagged")
+				}
+				arrElems, err := bsoncore.Document(arrBytes).Elements()
+				if err != nil {
+					return err
+				}
+				z.Jagged = make([][]string, 0, len(arrElems))
+				for _, ae := range arrElems {
+					{
+						subArrBytes6, subArrOK7 := ae.Value().ArrayOK()
+						if !subArrOK7 {
+							return fmt.Errorf("数组元素不是数组类型")
+						}
+						subArrElems8, subArrErr9 := bsoncore.Document(subArrBytes6).Elements()
+						if subArrErr9 != nil {
+							return subArrErr9
+						}
+						subItem10 := make([]string, 0, len(subArrElems8))
+						for _, sae := range subArrElems8 {
+							subItem10 = append(subItem10, sae.Value().StringValue())
+						}
+						z.Jagged = append(z.Jagged, subItem10)
+					}
+				}
+			}
 		}
 	}
 	return nil
@@ -413,25 +326,12 @@ func (z *PtrItem) UnmarshalBSON(b []byte) error {
 		}
 		data = rem
 
-		raw := []byte(elem)
 		val := elem.Value()
 
-		// Find key length
-		keyLen := 0
-		for raw[1+keyLen] != 0 {
-			keyLen++
-		}
-		keyBytes := raw[1 : 1+keyLen]
-
-		switch keyLen {
-		case 3:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 {
-			case uint64('v')<<0 | uint64('a')<<8 | uint64('l')<<16:
-				z.Val = val.StringValue()
-			default:
-			}
-		default:
-			// unknown key length — skip
+		keyBytes := elem.KeyBytes()
+		switch string(keyBytes) {
+		case "val":
+			z.Val = val.StringValue()
 		}
 	}
 	return nil
@@ -476,56 +376,43 @@ func (z *PtrSlice) UnmarshalBSON(b []byte) error {
 		}
 		data = rem
 
-		raw := []byte(elem)
 		val := elem.Value()
 
-		// Find key length
-		keyLen := 0
-		for raw[1+keyLen] != 0 {
-			keyLen++
-		}
-		keyBytes := raw[1 : 1+keyLen]
-
-		switch keyLen {
-		case 5:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 | uint64(keyBytes[3])<<24 | uint64(keyBytes[4])<<32 {
-			case uint64('i')<<0 | uint64('t')<<8 | uint64('e')<<16 | uint64('m')<<24 | uint64('s')<<32:
-				{
-					if val.Type == 0x0A {
-						z.Items = nil
-						break
-					}
-					arrBytes, ok := val.ArrayOK()
-					if !ok {
-						return fmt.Errorf("字段 %s 不是数组类型", "items")
-					}
-					arrElems, err := bsoncore.Document(arrBytes).Elements()
-					if err != nil {
-						return err
-					}
-					z.Items = make([]*PtrItem, 0, len(arrElems))
-					for _, ae := range arrElems {
-						{
-							if ae.Value().Type == 0x0A {
-								z.Items = append(z.Items, nil)
-							} else {
-								subBytes, ok := ae.Value().DocumentOK()
-								if !ok {
-									return fmt.Errorf("数组元素不是文档类型")
-								}
-								subItem := new(PtrItem)
-								if err := subItem.UnmarshalBSON(subBytes); err != nil {
-									return err
-								}
-								z.Items = append(z.Items, subItem)
+		keyBytes := elem.KeyBytes()
+		switch string(keyBytes) {
+		case "items":
+			{
+				if val.Type == 0x0A {
+					z.Items = nil
+					break
+				}
+				arrBytes, ok := val.ArrayOK()
+				if !ok {
+					return fmt.Errorf("字段 %s 不是数组类型", "items")
+				}
+				arrElems, err := bsoncore.Document(arrBytes).Elements()
+				if err != nil {
+					return err
+				}
+				z.Items = make([]*PtrItem, 0, len(arrElems))
+				for _, ae := range arrElems {
+					{
+						if ae.Value().Type == 0x0A {
+							z.Items = append(z.Items, nil)
+						} else {
+							subBytes, ok := ae.Value().DocumentOK()
+							if !ok {
+								return fmt.Errorf("数组元素不是文档类型")
 							}
+							subItem := new(PtrItem)
+							if err := subItem.UnmarshalBSON(subBytes); err != nil {
+								return err
+							}
+							z.Items = append(z.Items, subItem)
 						}
 					}
 				}
-			default:
 			}
-		default:
-			// unknown key length — skip
 		}
 	}
 	return nil
@@ -573,80 +460,65 @@ func (z *AnonymousStruct) UnmarshalBSON(b []byte) error {
 		}
 		data = rem
 
-		raw := []byte(elem)
 		val := elem.Value()
 
-		// Find key length
-		keyLen := 0
-		for raw[1+keyLen] != 0 {
-			keyLen++
-		}
-		keyBytes := raw[1 : 1+keyLen]
-
-		switch keyLen {
-		case 3:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 {
-			case uint64('i')<<0 | uint64('a')<<8 | uint64('p')<<16:
-				{
-					subBytes, ok := val.DocumentOK()
-					if !ok {
-						return fmt.Errorf("field is not document")
-					}
-					subElems, err := bsoncore.Document(subBytes).Elements()
-					if err != nil {
-						return err
-					}
-					for _, se := range subElems {
-						switch se.Key() {
-						case "f":
-							z.IAP.AccFlags = se.Value().AsInt64()
-						case "sku":
-							z.IAP.SKU = se.Value().StringValue()
-						}
-					}
+		keyBytes := elem.KeyBytes()
+		switch string(keyBytes) {
+		case "onboarding":
+			{
+				subBytes, ok := val.DocumentOK()
+				if !ok {
+					return fmt.Errorf("field is not document")
 				}
-			default:
-			}
-		case 10:
-			if bytes.Equal(keyBytes, []byte("onboarding")) {
-				{
-					subBytes, ok := val.DocumentOK()
-					if !ok {
-						return fmt.Errorf("field is not document")
-					}
-					subElems, err := bsoncore.Document(subBytes).Elements()
-					if err != nil {
-						return err
-					}
-					for _, se := range subElems {
-						switch se.Key() {
-						case "ns":
-							z.Onboarding.NextStep = se.Value().Int32()
-						case "dl":
-							{
-								if se.Value().Type == 0x0A {
-									z.Onboarding.DoneList = nil
-									break
-								}
-								arrBytes, ok := se.Value().ArrayOK()
-								if !ok {
-									return fmt.Errorf("field is not array")
-								}
-								arrElems, err := bsoncore.Document(arrBytes).Elements()
-								if err != nil {
-									return err
-								}
-								z.Onboarding.DoneList = make([]int32, 0, len(arrElems))
-								for _, ae := range arrElems {
-									z.Onboarding.DoneList = append(z.Onboarding.DoneList, ae.Value().Int32())
-								}
+				subElems, err := bsoncore.Document(subBytes).Elements()
+				if err != nil {
+					return err
+				}
+				for _, se := range subElems {
+					switch se.Key() {
+					case "ns":
+						z.Onboarding.NextStep = se.Value().Int32()
+					case "dl":
+						{
+							if se.Value().Type == 0x0A {
+								z.Onboarding.DoneList = nil
+								break
+							}
+							arrBytes, ok := se.Value().ArrayOK()
+							if !ok {
+								return fmt.Errorf("field is not array")
+							}
+							arrElems, err := bsoncore.Document(arrBytes).Elements()
+							if err != nil {
+								return err
+							}
+							z.Onboarding.DoneList = make([]int32, 0, len(arrElems))
+							for _, ae := range arrElems {
+								z.Onboarding.DoneList = append(z.Onboarding.DoneList, ae.Value().Int32())
 							}
 						}
 					}
 				}
 			}
-		default:
-			// unknown key length — skip
+		case "iap":
+			{
+				subBytes, ok := val.DocumentOK()
+				if !ok {
+					return fmt.Errorf("field is not document")
+				}
+				subElems, err := bsoncore.Document(subBytes).Elements()
+				if err != nil {
+					return err
+				}
+				for _, se := range subElems {
+					switch se.Key() {
+					case "f":
+						z.IAP.AccFlags = se.Value().AsInt64()
+					case "sku":
+						z.IAP.SKU = se.Value().StringValue()
+					}
+				}
+			}
 		}
 	}
 	return nil
@@ -686,51 +558,30 @@ func (z *IntWidths) UnmarshalBSON(b []byte) error {
 		}
 		data = rem
 
-		raw := []byte(elem)
 		val := elem.Value()
 
-		// Find key length
-		keyLen := 0
-		for raw[1+keyLen] != 0 {
-			keyLen++
-		}
-		keyBytes := raw[1 : 1+keyLen]
-
-		switch keyLen {
-		case 2:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 {
-			case uint64('i')<<0 | uint64('8')<<8:
-				z.I8 = int8(val.AsInt64())
-			default:
-			}
-		case 3:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 {
-			case uint64('i')<<0 | uint64('1')<<8 | uint64('6')<<16:
-				z.I16 = int16(val.AsInt64())
-			case uint64('i')<<0 | uint64('3')<<8 | uint64('2')<<16:
-				z.I32 = val.Int32()
-			case uint64('i')<<0 | uint64('6')<<8 | uint64('4')<<16:
-				z.I64 = val.AsInt64()
-			case uint64('u')<<0 | uint64('i')<<8 | uint64('8')<<16:
-				z.UI8 = byte(val.AsInt64())
-			case uint64('i')<<0 | uint64('n')<<8 | uint64('t')<<16:
-				z.Int = int(val.AsInt64())
-			default:
-			}
-		case 4:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 | uint64(keyBytes[3])<<24 {
-			case uint64('u')<<0 | uint64('i')<<8 | uint64('1')<<16 | uint64('6')<<24:
-				z.UI16 = uint16(val.AsInt64())
-			case uint64('u')<<0 | uint64('i')<<8 | uint64('3')<<16 | uint64('2')<<24:
-				z.UI32 = uint32(val.AsInt64())
-			case uint64('u')<<0 | uint64('i')<<8 | uint64('6')<<16 | uint64('4')<<24:
-				z.UI64 = uint64(val.AsInt64())
-			case uint64('u')<<0 | uint64('i')<<8 | uint64('n')<<16 | uint64('t')<<24:
-				z.Uint = uint(val.AsInt64())
-			default:
-			}
-		default:
-			// unknown key length — skip
+		keyBytes := elem.KeyBytes()
+		switch string(keyBytes) {
+		case "i8":
+			z.I8 = int8(val.AsInt64())
+		case "i16":
+			z.I16 = int16(val.AsInt64())
+		case "i32":
+			z.I32 = val.Int32()
+		case "i64":
+			z.I64 = val.AsInt64()
+		case "ui8":
+			z.UI8 = byte(val.AsInt64())
+		case "ui16":
+			z.UI16 = uint16(val.AsInt64())
+		case "ui32":
+			z.UI32 = uint32(val.AsInt64())
+		case "ui64":
+			z.UI64 = uint64(val.AsInt64())
+		case "int":
+			z.Int = int(val.AsInt64())
+		case "uint":
+			z.Uint = uint(val.AsInt64())
 		}
 	}
 	return nil
@@ -802,117 +653,88 @@ func (z *ZeroValues) UnmarshalBSON(b []byte) error {
 		}
 		data = rem
 
-		raw := []byte(elem)
 		val := elem.Value()
 
-		// Find key length
-		keyLen := 0
-		for raw[1+keyLen] != 0 {
-			keyLen++
-		}
-		keyBytes := raw[1 : 1+keyLen]
-
-		switch keyLen {
-		case 3:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 {
-			case uint64('s')<<0 | uint64('t')<<8 | uint64('r')<<16:
-				z.Str = val.StringValue()
-			case uint64('i')<<0 | uint64('3')<<8 | uint64('2')<<16:
-				z.I32 = val.Int32()
-			case uint64('f')<<0 | uint64('6')<<8 | uint64('4')<<16:
-				z.F64 = val.Double()
-			case uint64('m')<<0 | uint64('a')<<8 | uint64('p')<<16:
-				{
-					if val.Type == 0x0A {
-						z.Map = nil
-						break
-					}
-					mapBytes, ok := val.DocumentOK()
-					if !ok {
-						return fmt.Errorf("字段 %s 不是文档类型", "map")
-					}
-					mapElems, err := bsoncore.Document(mapBytes).Elements()
-					if err != nil {
-						return err
-					}
-					z.Map = make(map[string]int, len(mapElems))
-					for _, me := range mapElems {
-						z.Map[me.Key()] = int(me.Value().AsInt64())
-					}
-				}
-			case uint64('p')<<0 | uint64('t')<<8 | uint64('r')<<16:
-				{
-					if val.Type == 0x0A {
-						z.Ptr = nil
-						break
-					}
-					tmp := val.StringValue()
-					z.Ptr = &tmp
-				}
-			default:
+		keyBytes := elem.KeyBytes()
+		switch string(keyBytes) {
+		case "str":
+			z.Str = val.StringValue()
+		case "bool":
+			z.Bool = val.Boolean()
+		case "i32":
+			z.I32 = val.Int32()
+		case "f64":
+			z.F64 = val.Double()
+		case "bytes":
+			if val.Type == 0x0A {
+				z.Bytes = nil
+			} else {
+				_, z.Bytes, _ = val.BinaryOK()
 			}
-		case 4:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 | uint64(keyBytes[3])<<24 {
-			case uint64('b')<<0 | uint64('o')<<8 | uint64('o')<<16 | uint64('l')<<24:
-				z.Bool = val.Boolean()
-			case uint64('t')<<0 | uint64('i')<<8 | uint64('m')<<16 | uint64('e')<<24:
-				z.Time = primitive.DateTime(val.DateTime()).Time()
-			default:
-			}
-		case 5:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 | uint64(keyBytes[3])<<24 | uint64(keyBytes[4])<<32 {
-			case uint64('b')<<0 | uint64('y')<<8 | uint64('t')<<16 | uint64('e')<<24 | uint64('s')<<32:
+		case "slice":
+			{
 				if val.Type == 0x0A {
-					z.Bytes = nil
-				} else {
-					_, z.Bytes, _ = val.BinaryOK()
+					z.Slice = nil
+					break
 				}
-			case uint64('s')<<0 | uint64('l')<<8 | uint64('i')<<16 | uint64('c')<<24 | uint64('e')<<32:
-				{
-					if val.Type == 0x0A {
-						z.Slice = nil
-						break
-					}
-					arrBytes, ok := val.ArrayOK()
-					if !ok {
-						return fmt.Errorf("字段 %s 不是数组类型", "slice")
-					}
-					arrElems, err := bsoncore.Document(arrBytes).Elements()
-					if err != nil {
-						return err
-					}
-					z.Slice = make([]string, 0, len(arrElems))
-					for _, ae := range arrElems {
-						z.Slice = append(z.Slice, ae.Value().StringValue())
-					}
+				arrBytes, ok := val.ArrayOK()
+				if !ok {
+					return fmt.Errorf("字段 %s 不是数组类型", "slice")
 				}
-			default:
-			}
-		case 7:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 | uint64(keyBytes[3])<<24 | uint64(keyBytes[4])<<32 | uint64(keyBytes[5])<<40 | uint64(keyBytes[6])<<48 {
-			case uint64('o')<<0 | uint64('p')<<8 | uint64('t')<<16 | uint64('_')<<24 | uint64('s')<<32 | uint64('t')<<40 | uint64('r')<<48:
-				z.OptStr = val.StringValue()
-			case uint64('o')<<0 | uint64('p')<<8 | uint64('t')<<16 | uint64('_')<<24 | uint64('i')<<32 | uint64('3')<<40 | uint64('2')<<48:
-				z.OptI32 = val.Int32()
-			case uint64('o')<<0 | uint64('p')<<8 | uint64('t')<<16 | uint64('_')<<24 | uint64('p')<<32 | uint64('t')<<40 | uint64('r')<<48:
-				{
-					if val.Type == 0x0A {
-						z.OptPtr = nil
-						break
-					}
-					tmp := val.StringValue()
-					z.OptPtr = &tmp
+				arrElems, err := bsoncore.Document(arrBytes).Elements()
+				if err != nil {
+					return err
 				}
-			default:
+				z.Slice = make([]string, 0, len(arrElems))
+				for _, ae := range arrElems {
+					z.Slice = append(z.Slice, ae.Value().StringValue())
+				}
 			}
-		case 8:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 | uint64(keyBytes[3])<<24 | uint64(keyBytes[4])<<32 | uint64(keyBytes[5])<<40 | uint64(keyBytes[6])<<48 | uint64(keyBytes[7])<<56 {
-			case uint64('o')<<0 | uint64('p')<<8 | uint64('t')<<16 | uint64('_')<<24 | uint64('b')<<32 | uint64('o')<<40 | uint64('o')<<48 | uint64('l')<<56:
-				z.OptBool = val.Boolean()
-			default:
+		case "map":
+			{
+				if val.Type == 0x0A {
+					z.Map = nil
+					break
+				}
+				mapBytes, ok := val.DocumentOK()
+				if !ok {
+					return fmt.Errorf("字段 %s 不是文档类型", "map")
+				}
+				mapElems, err := bsoncore.Document(mapBytes).Elements()
+				if err != nil {
+					return err
+				}
+				z.Map = make(map[string]int, len(mapElems))
+				for _, me := range mapElems {
+					z.Map[me.Key()] = int(me.Value().AsInt64())
+				}
 			}
-		default:
-			// unknown key length — skip
+		case "ptr":
+			{
+				if val.Type == 0x0A {
+					z.Ptr = nil
+					break
+				}
+				tmp := val.StringValue()
+				z.Ptr = &tmp
+			}
+		case "time":
+			z.Time = primitive.DateTime(val.DateTime()).Time()
+		case "opt_str":
+			z.OptStr = val.StringValue()
+		case "opt_i32":
+			z.OptI32 = val.Int32()
+		case "opt_bool":
+			z.OptBool = val.Boolean()
+		case "opt_ptr":
+			{
+				if val.Type == 0x0A {
+					z.OptPtr = nil
+					break
+				}
+				tmp := val.StringValue()
+				z.OptPtr = &tmp
+			}
 		}
 	}
 	return nil
@@ -939,33 +761,16 @@ func (z *BattleStats) UnmarshalBSON(b []byte) error {
 		}
 		data = rem
 
-		raw := []byte(elem)
 		val := elem.Value()
 
-		// Find key length
-		keyLen := 0
-		for raw[1+keyLen] != 0 {
-			keyLen++
-		}
-		keyBytes := raw[1 : 1+keyLen]
-
-		switch keyLen {
-		case 4:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 | uint64(keyBytes[3])<<24 {
-			case uint64('w')<<0 | uint64('i')<<8 | uint64('n')<<16 | uint64('s')<<24:
-				z.Wins = val.Int32()
-			default:
-			}
-		case 6:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 | uint64(keyBytes[3])<<24 | uint64(keyBytes[4])<<32 | uint64(keyBytes[5])<<40 {
-			case uint64('l')<<0 | uint64('o')<<8 | uint64('s')<<16 | uint64('s')<<24 | uint64('e')<<32 | uint64('s')<<40:
-				z.Losses = val.Int32()
-			case uint64('r')<<0 | uint64('a')<<8 | uint64('t')<<16 | uint64('i')<<24 | uint64('n')<<32 | uint64('g')<<40:
-				z.Rating = val.Int32()
-			default:
-			}
-		default:
-			// unknown key length — skip
+		keyBytes := elem.KeyBytes()
+		switch string(keyBytes) {
+		case "wins":
+			z.Wins = val.Int32()
+		case "losses":
+			z.Losses = val.Int32()
+		case "rating":
+			z.Rating = val.Int32()
 		}
 	}
 	return nil
@@ -1001,48 +806,31 @@ func (z *Bag) UnmarshalBSON(b []byte) error {
 		}
 		data = rem
 
-		raw := []byte(elem)
 		val := elem.Value()
 
-		// Find key length
-		keyLen := 0
-		for raw[1+keyLen] != 0 {
-			keyLen++
-		}
-		keyBytes := raw[1 : 1+keyLen]
-
-		switch keyLen {
-		case 4:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 | uint64(keyBytes[3])<<24 {
-			case uint64('g')<<0 | uint64('o')<<8 | uint64('l')<<16 | uint64('d')<<24:
-				z.Gold = val.AsInt64()
-			default:
-			}
-		case 5:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 | uint64(keyBytes[3])<<24 | uint64(keyBytes[4])<<32 {
-			case uint64('i')<<0 | uint64('t')<<8 | uint64('e')<<16 | uint64('m')<<24 | uint64('s')<<32:
-				{
-					if val.Type == 0x0A {
-						z.Items = nil
-						break
-					}
-					arrBytes, ok := val.ArrayOK()
-					if !ok {
-						return fmt.Errorf("字段 %s 不是数组类型", "items")
-					}
-					arrElems, err := bsoncore.Document(arrBytes).Elements()
-					if err != nil {
-						return err
-					}
-					z.Items = make([]int32, 0, len(arrElems))
-					for _, ae := range arrElems {
-						z.Items = append(z.Items, ae.Value().Int32())
-					}
+		keyBytes := elem.KeyBytes()
+		switch string(keyBytes) {
+		case "gold":
+			z.Gold = val.AsInt64()
+		case "items":
+			{
+				if val.Type == 0x0A {
+					z.Items = nil
+					break
 				}
-			default:
+				arrBytes, ok := val.ArrayOK()
+				if !ok {
+					return fmt.Errorf("字段 %s 不是数组类型", "items")
+				}
+				arrElems, err := bsoncore.Document(arrBytes).Elements()
+				if err != nil {
+					return err
+				}
+				z.Items = make([]int32, 0, len(arrElems))
+				for _, ae := range arrElems {
+					z.Items = append(z.Items, ae.Value().Int32())
+				}
 			}
-		default:
-			// unknown key length — skip
 		}
 	}
 	return nil
@@ -1221,367 +1009,328 @@ func (z *Player) UnmarshalBSON(b []byte) error {
 		}
 		data = rem
 
-		raw := []byte(elem)
 		val := elem.Value()
 
-		// Find key length
-		keyLen := 0
-		for raw[1+keyLen] != 0 {
-			keyLen++
-		}
-		keyBytes := raw[1 : 1+keyLen]
-
-		switch keyLen {
-		case 2:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 {
-			case uint64('l')<<0 | uint64('v')<<8:
-				z.Level = val.Int32()
-			default:
-			}
-		case 3:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 {
-			case uint64('_')<<0 | uint64('i')<<8 | uint64('d')<<16:
-				z.ID = val.AsInt64()
-			case uint64('e')<<0 | uint64('x')<<8 | uint64('p')<<16:
-				z.Exp = val.Int32()
-			case uint64('v')<<0 | uint64('i')<<8 | uint64('p')<<16:
-				z.VipLevel = val.Int32()
-			case uint64('t')<<0 | uint64('a')<<8 | uint64('g')<<16:
-				z.Tag = val.Int32()
-			case uint64('b')<<0 | uint64('a')<<8 | uint64('g')<<16:
-				{
-					subBytes, ok := val.DocumentOK()
-					if !ok {
-						return fmt.Errorf("字段 %s 不是文档类型", "bag")
-					}
-					if err := z.Bag.UnmarshalBSON(subBytes); err != nil {
-						return err
-					}
+		keyBytes := elem.KeyBytes()
+		switch string(keyBytes) {
+		case "_id":
+			z.ID = val.AsInt64()
+		case "account_id":
+			z.AccountID = val.AsInt64()
+		case "name":
+			z.Name = val.StringValue()
+		case "lv":
+			z.Level = val.Int32()
+		case "exp":
+			z.Exp = val.Int32()
+		case "head":
+			z.Head = val.Int32()
+		case "vip":
+			z.VipLevel = val.Int32()
+		case "tag":
+			z.Tag = val.Int32()
+		case "rate":
+			z.Rate = int8(val.AsInt64())
+		case "load":
+			z.Load = val.Boolean()
+		case "renamed":
+			z.HasRenamed = val.Boolean()
+		case "offline_fight":
+			{
+				if val.Type == 0x0A {
+					z.OfflineFight = nil
+					break
 				}
-			case uint64('c')<<0 | uint64('d')<<8 | uint64('f')<<16:
-				{
-					if val.Type == 0x0A {
-						z.ClientFilter = nil
-						break
+				val, ok := val.DocumentOK()
+				if ok {
+					z.OfflineFight = new(Hero)
+					subBytes11, subOK12 := bsoncore.Value{Type: 0x03, Data: val}.DocumentOK()
+					if !subOK12 {
+						return fmt.Errorf("字段 %s 不是文档类型", "offline_fight")
 					}
-					arrBytes, ok := val.ArrayOK()
-					if !ok {
-						return fmt.Errorf("字段 %s 不是数组类型", "cdf")
+					subElems13, subErr14 := bsoncore.Document(subBytes11).Elements()
+					if subErr14 != nil {
+						return subErr14
 					}
-					arrElems, err := bsoncore.Document(arrBytes).Elements()
-					if err != nil {
-						return err
-					}
-					z.ClientFilter = make([][]int32, 0, len(arrElems))
-					for _, ae := range arrElems {
-						{
-							subArrBytes11, subArrOK12 := ae.Value().ArrayOK()
-							if !subArrOK12 {
-								return fmt.Errorf("数组元素不是数组类型")
-							}
-							subArrElems13, subArrErr14 := bsoncore.Document(subArrBytes11).Elements()
-							if subArrErr14 != nil {
-								return subArrErr14
-							}
-							subItem15 := make([]int32, 0, len(subArrElems13))
-							for _, sae := range subArrElems13 {
-								subItem15 = append(subItem15, sae.Value().Int32())
-							}
-							z.ClientFilter = append(z.ClientFilter, subItem15)
+					for _, subElem15 := range subElems13 {
+						switch subElem15.Key() {
+						case "id":
+							z.OfflineFight.ID = subElem15.Value().Int32()
+						case "name":
+							z.OfflineFight.Name = subElem15.Value().StringValue()
+						case "hp":
+							z.OfflineFight.HP = subElem15.Value().Int32()
+						case "mp":
+							z.OfflineFight.MP = subElem15.Value().Int32()
 						}
 					}
+				} else {
+					z.OfflineFight = nil
 				}
-			case uint64('b')<<0 | uint64('d')<<8 | uint64('s')<<16:
-				{
-					if val.Type == 0x0A {
-						z.BossDropSeqs = nil
-						break
-					}
-					arrBytes, ok := val.ArrayOK()
-					if !ok {
-						return fmt.Errorf("字段 %s 不是数组类型", "bds")
-					}
-					arrElems, err := bsoncore.Document(arrBytes).Elements()
-					if err != nil {
-						return err
-					}
-					z.BossDropSeqs = make([]map[string]int64, 0, len(arrElems))
-					for _, ae := range arrElems {
-						{
-							subMapBytes16, subMapOK17 := ae.Value().DocumentOK()
-							if !subMapOK17 {
-								return fmt.Errorf("数组元素不是文档类型")
-							}
-							subMapElems18, subMapErr19 := bsoncore.Document(subMapBytes16).Elements()
-							if subMapErr19 != nil {
-								return subMapErr19
-							}
-							subItem20 := make(map[string]int64, len(subMapElems18))
-							for _, sme := range subMapElems18 {
-								subItem20[sme.Key()] = sme.Value().AsInt64()
-							}
-							z.BossDropSeqs = append(z.BossDropSeqs, subItem20)
-						}
-					}
-				}
-			case uint64('n')<<0 | uint64('i')<<8 | uint64('d')<<16:
-				z.AutoIncrementID = int(val.AsInt64())
-			default:
 			}
-		case 4:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 | uint64(keyBytes[3])<<24 {
-			case uint64('n')<<0 | uint64('a')<<8 | uint64('m')<<16 | uint64('e')<<24:
-				z.Name = val.StringValue()
-			case uint64('h')<<0 | uint64('e')<<8 | uint64('a')<<16 | uint64('d')<<24:
-				z.Head = val.Int32()
-			case uint64('r')<<0 | uint64('a')<<8 | uint64('t')<<16 | uint64('e')<<24:
-				z.Rate = int8(val.AsInt64())
-			case uint64('l')<<0 | uint64('o')<<8 | uint64('a')<<16 | uint64('d')<<24:
-				z.Load = val.Boolean()
-			case uint64('p')<<0 | uint64('b')<<8 | uint64('c')<<16 | uint64('s')<<24:
-				{
-					if val.Type == 0x0A {
-						z.PBCounters = nil
-						break
-					}
-					arrBytes, ok := val.ArrayOK()
-					if !ok {
-						return fmt.Errorf("字段 %s 不是数组类型", "pbcs")
-					}
-					arrElems, err := bsoncore.Document(arrBytes).Elements()
-					if err != nil {
-						return err
-					}
-					z.PBCounters = make([]map[string]int64, 0, len(arrElems))
-					for _, ae := range arrElems {
-						{
-							subMapBytes21, subMapOK22 := ae.Value().DocumentOK()
-							if !subMapOK22 {
-								return fmt.Errorf("数组元素不是文档类型")
-							}
-							subMapElems23, subMapErr24 := bsoncore.Document(subMapBytes21).Elements()
-							if subMapErr24 != nil {
-								return subMapErr24
-							}
-							subItem25 := make(map[string]int64, len(subMapElems23))
-							for _, sme := range subMapElems23 {
-								subItem25[sme.Key()] = sme.Value().AsInt64()
-							}
-							z.PBCounters = append(z.PBCounters, subItem25)
-						}
-					}
+		case "heros":
+			{
+				if val.Type == 0x0A {
+					z.Heros = nil
+					break
 				}
-			case uint64('b')<<0 | uint64('i')<<8 | uint64('d')<<16 | uint64('s')<<24:
-				{
-					if val.Type == 0x0A {
-						z.Bids = nil
-						break
-					}
-					arrBytes, ok := val.ArrayOK()
-					if !ok {
-						return fmt.Errorf("字段 %s 不是数组类型", "bids")
-					}
-					arrElems, err := bsoncore.Document(arrBytes).Elements()
-					if err != nil {
-						return err
-					}
-					z.Bids = make([]string, 0, len(arrElems))
-					for _, ae := range arrElems {
-						z.Bids = append(z.Bids, ae.Value().StringValue())
-					}
+				arrBytes, ok := val.ArrayOK()
+				if !ok {
+					return fmt.Errorf("字段 %s 不是数组类型", "heros")
 				}
-			default:
-			}
-		case 5:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 | uint64(keyBytes[3])<<24 | uint64(keyBytes[4])<<32 {
-			case uint64('h')<<0 | uint64('e')<<8 | uint64('r')<<16 | uint64('o')<<24 | uint64('s')<<32:
-				{
-					if val.Type == 0x0A {
-						z.Heros = nil
-						break
-					}
-					arrBytes, ok := val.ArrayOK()
-					if !ok {
-						return fmt.Errorf("字段 %s 不是数组类型", "heros")
-					}
-					arrElems, err := bsoncore.Document(arrBytes).Elements()
-					if err != nil {
-						return err
-					}
-					z.Heros = make([]*Hero, 0, len(arrElems))
-					for _, ae := range arrElems {
-						{
-							if ae.Value().Type == 0x0A {
-								z.Heros = append(z.Heros, nil)
-							} else {
-								subBytes, ok := ae.Value().DocumentOK()
-								if !ok {
-									return fmt.Errorf("数组元素不是文档类型")
-								}
-								subItem := new(Hero)
-								subBytes26, subOK27 := bsoncore.Value{Type: 0x03, Data: subBytes}.DocumentOK()
-								if !subOK27 {
-									return fmt.Errorf("字段 %s 不是文档类型", "数组元素")
-								}
-								subElems28, subErr29 := bsoncore.Document(subBytes26).Elements()
-								if subErr29 != nil {
-									return subErr29
-								}
-								for _, subElem30 := range subElems28 {
-									switch subElem30.Key() {
-									case "id":
-										subItem.ID = subElem30.Value().Int32()
-									case "name":
-										subItem.Name = subElem30.Value().StringValue()
-									case "hp":
-										subItem.HP = subElem30.Value().Int32()
-									case "mp":
-										subItem.MP = subElem30.Value().Int32()
-									}
-								}
-								z.Heros = append(z.Heros, subItem)
-							}
-						}
-					}
+				arrElems, err := bsoncore.Document(arrBytes).Elements()
+				if err != nil {
+					return err
 				}
-			default:
-			}
-		case 7:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 | uint64(keyBytes[3])<<24 | uint64(keyBytes[4])<<32 | uint64(keyBytes[5])<<40 | uint64(keyBytes[6])<<48 {
-			case uint64('r')<<0 | uint64('e')<<8 | uint64('n')<<16 | uint64('a')<<24 | uint64('m')<<32 | uint64('e')<<40 | uint64('d')<<48:
-				z.HasRenamed = val.Boolean()
-			case uint64('s')<<0 | uint64('t')<<8 | uint64('a')<<16 | uint64('t')<<24 | uint64('u')<<32 | uint64('e')<<40 | uint64('s')<<48:
-				{
-					subBytes, ok := val.DocumentOK()
-					if !ok {
-						return fmt.Errorf("字段 %s 不是文档类型", "statues")
-					}
-					if err := z.Statue.UnmarshalBSON(subBytes); err != nil {
-						return err
-					}
-				}
-			default:
-			}
-		case 8:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 | uint64(keyBytes[3])<<24 | uint64(keyBytes[4])<<32 | uint64(keyBytes[5])<<40 | uint64(keyBytes[6])<<48 | uint64(keyBytes[7])<<56 {
-			case uint64('s')<<0 | uint64('u')<<8 | uint64('b')<<16 | uint64('_')<<24 | uint64('c')<<32 | uint64('h')<<40 | uint64('a')<<48 | uint64('n')<<56:
-				{
-					if val.Type == 0x0A {
-						z.SubChan = nil
-						break
-					}
-					arrBytes, ok := val.ArrayOK()
-					if !ok {
-						return fmt.Errorf("字段 %s 不是数组类型", "sub_chan")
-					}
-					arrElems, err := bsoncore.Document(arrBytes).Elements()
-					if err != nil {
-						return err
-					}
-					z.SubChan = make([]string, 0, len(arrElems))
-					for _, ae := range arrElems {
-						z.SubChan = append(z.SubChan, ae.Value().StringValue())
-					}
-				}
-			default:
-			}
-		case 9:
-			if bytes.Equal(keyBytes, []byte("sale_pkgs")) {
-				{
-					if val.Type == 0x0A {
-						z.SalePackages = nil
-						break
-					}
-					arrBytes, ok := val.ArrayOK()
-					if !ok {
-						return fmt.Errorf("字段 %s 不是数组类型", "sale_pkgs")
-					}
-					arrElems, err := bsoncore.Document(arrBytes).Elements()
-					if err != nil {
-						return err
-					}
-					z.SalePackages = make([]*struct {
-						ID   int32  `bson:"id"`
-						Name string `bson:"name"`
-					}, 0, len(arrElems))
-					for _, ae := range arrElems {
-						{
+				z.Heros = make([]*Hero, 0, len(arrElems))
+				for _, ae := range arrElems {
+					{
+						if ae.Value().Type == 0x0A {
+							z.Heros = append(z.Heros, nil)
+						} else {
 							subBytes, ok := ae.Value().DocumentOK()
 							if !ok {
 								return fmt.Errorf("数组元素不是文档类型")
 							}
-							var subItem *struct {
-								ID   int32  `bson:"id"`
-								Name string `bson:"name"`
+							subItem := new(Hero)
+							subBytes16, subOK17 := bsoncore.Value{Type: 0x03, Data: subBytes}.DocumentOK()
+							if !subOK17 {
+								return fmt.Errorf("字段 %s 不是文档类型", "数组元素")
 							}
-							if err := bson.Unmarshal(subBytes, &subItem); err != nil {
-								return err
+							subElems18, subErr19 := bsoncore.Document(subBytes16).Elements()
+							if subErr19 != nil {
+								return subErr19
 							}
-							z.SalePackages = append(z.SalePackages, subItem)
+							for _, subElem20 := range subElems18 {
+								switch subElem20.Key() {
+								case "id":
+									subItem.ID = subElem20.Value().Int32()
+								case "name":
+									subItem.Name = subElem20.Value().StringValue()
+								case "hp":
+									subItem.HP = subElem20.Value().Int32()
+								case "mp":
+									subItem.MP = subElem20.Value().Int32()
+								}
+							}
+							z.Heros = append(z.Heros, subItem)
 						}
 					}
 				}
-			} else if bytes.Equal(keyBytes, []byte("contracts")) {
-				{
-					if val.Type == 0x0A {
-						z.ActiveContracts = nil
-						break
-					}
-					arrBytes, ok := val.ArrayOK()
-					if !ok {
-						return fmt.Errorf("字段 %s 不是数组类型", "contracts")
-					}
-					arrElems, err := bsoncore.Document(arrBytes).Elements()
-					if err != nil {
-						return err
-					}
-					z.ActiveContracts = make([]int32, 0, len(arrElems))
-					for _, ae := range arrElems {
-						z.ActiveContracts = append(z.ActiveContracts, ae.Value().Int32())
+			}
+		case "bag":
+			{
+				subBytes, ok := val.DocumentOK()
+				if !ok {
+					return fmt.Errorf("字段 %s 不是文档类型", "bag")
+				}
+				if err := z.Bag.UnmarshalBSON(subBytes); err != nil {
+					return err
+				}
+			}
+		case "sale_pkgs":
+			{
+				if val.Type == 0x0A {
+					z.SalePackages = nil
+					break
+				}
+				arrBytes, ok := val.ArrayOK()
+				if !ok {
+					return fmt.Errorf("字段 %s 不是数组类型", "sale_pkgs")
+				}
+				arrElems, err := bsoncore.Document(arrBytes).Elements()
+				if err != nil {
+					return err
+				}
+				z.SalePackages = make([]*struct {
+					ID   int32  `bson:"id"`
+					Name string `bson:"name"`
+				}, 0, len(arrElems))
+				for _, ae := range arrElems {
+					{
+						subBytes, ok := ae.Value().DocumentOK()
+						if !ok {
+							return fmt.Errorf("数组元素不是文档类型")
+						}
+						var subItem *struct {
+							ID   int32  `bson:"id"`
+							Name string `bson:"name"`
+						}
+						if err := bson.Unmarshal(subBytes, &subItem); err != nil {
+							return err
+						}
+						z.SalePackages = append(z.SalePackages, subItem)
 					}
 				}
 			}
-		case 10:
-			if bytes.Equal(keyBytes, []byte("account_id")) {
-				z.AccountID = val.AsInt64()
-			}
-		case 13:
-			if bytes.Equal(keyBytes, []byte("offline_fight")) {
-				{
-					if val.Type == 0x0A {
-						z.OfflineFight = nil
-						break
-					}
-					val, ok := val.DocumentOK()
-					if ok {
-						z.OfflineFight = new(Hero)
-						subBytes31, subOK32 := bsoncore.Value{Type: 0x03, Data: val}.DocumentOK()
-						if !subOK32 {
-							return fmt.Errorf("字段 %s 不是文档类型", "offline_fight")
+		case "cdf":
+			{
+				if val.Type == 0x0A {
+					z.ClientFilter = nil
+					break
+				}
+				arrBytes, ok := val.ArrayOK()
+				if !ok {
+					return fmt.Errorf("字段 %s 不是数组类型", "cdf")
+				}
+				arrElems, err := bsoncore.Document(arrBytes).Elements()
+				if err != nil {
+					return err
+				}
+				z.ClientFilter = make([][]int32, 0, len(arrElems))
+				for _, ae := range arrElems {
+					{
+						subArrBytes21, subArrOK22 := ae.Value().ArrayOK()
+						if !subArrOK22 {
+							return fmt.Errorf("数组元素不是数组类型")
 						}
-						subElems33, subErr34 := bsoncore.Document(subBytes31).Elements()
-						if subErr34 != nil {
-							return subErr34
+						subArrElems23, subArrErr24 := bsoncore.Document(subArrBytes21).Elements()
+						if subArrErr24 != nil {
+							return subArrErr24
 						}
-						for _, subElem35 := range subElems33 {
-							switch subElem35.Key() {
-							case "id":
-								z.OfflineFight.ID = subElem35.Value().Int32()
-							case "name":
-								z.OfflineFight.Name = subElem35.Value().StringValue()
-							case "hp":
-								z.OfflineFight.HP = subElem35.Value().Int32()
-							case "mp":
-								z.OfflineFight.MP = subElem35.Value().Int32()
-							}
+						subItem25 := make([]int32, 0, len(subArrElems23))
+						for _, sae := range subArrElems23 {
+							subItem25 = append(subItem25, sae.Value().Int32())
 						}
-					} else {
-						z.OfflineFight = nil
+						z.ClientFilter = append(z.ClientFilter, subItem25)
 					}
 				}
 			}
-		default:
-			// unknown key length — skip
+		case "pbcs":
+			{
+				if val.Type == 0x0A {
+					z.PBCounters = nil
+					break
+				}
+				arrBytes, ok := val.ArrayOK()
+				if !ok {
+					return fmt.Errorf("字段 %s 不是数组类型", "pbcs")
+				}
+				arrElems, err := bsoncore.Document(arrBytes).Elements()
+				if err != nil {
+					return err
+				}
+				z.PBCounters = make([]map[string]int64, 0, len(arrElems))
+				for _, ae := range arrElems {
+					{
+						subMapBytes26, subMapOK27 := ae.Value().DocumentOK()
+						if !subMapOK27 {
+							return fmt.Errorf("数组元素不是文档类型")
+						}
+						subMapElems28, subMapErr29 := bsoncore.Document(subMapBytes26).Elements()
+						if subMapErr29 != nil {
+							return subMapErr29
+						}
+						subItem30 := make(map[string]int64, len(subMapElems28))
+						for _, sme := range subMapElems28 {
+							subItem30[sme.Key()] = sme.Value().AsInt64()
+						}
+						z.PBCounters = append(z.PBCounters, subItem30)
+					}
+				}
+			}
+		case "bds":
+			{
+				if val.Type == 0x0A {
+					z.BossDropSeqs = nil
+					break
+				}
+				arrBytes, ok := val.ArrayOK()
+				if !ok {
+					return fmt.Errorf("字段 %s 不是数组类型", "bds")
+				}
+				arrElems, err := bsoncore.Document(arrBytes).Elements()
+				if err != nil {
+					return err
+				}
+				z.BossDropSeqs = make([]map[string]int64, 0, len(arrElems))
+				for _, ae := range arrElems {
+					{
+						subMapBytes31, subMapOK32 := ae.Value().DocumentOK()
+						if !subMapOK32 {
+							return fmt.Errorf("数组元素不是文档类型")
+						}
+						subMapElems33, subMapErr34 := bsoncore.Document(subMapBytes31).Elements()
+						if subMapErr34 != nil {
+							return subMapErr34
+						}
+						subItem35 := make(map[string]int64, len(subMapElems33))
+						for _, sme := range subMapElems33 {
+							subItem35[sme.Key()] = sme.Value().AsInt64()
+						}
+						z.BossDropSeqs = append(z.BossDropSeqs, subItem35)
+					}
+				}
+			}
+		case "bids":
+			{
+				if val.Type == 0x0A {
+					z.Bids = nil
+					break
+				}
+				arrBytes, ok := val.ArrayOK()
+				if !ok {
+					return fmt.Errorf("字段 %s 不是数组类型", "bids")
+				}
+				arrElems, err := bsoncore.Document(arrBytes).Elements()
+				if err != nil {
+					return err
+				}
+				z.Bids = make([]string, 0, len(arrElems))
+				for _, ae := range arrElems {
+					z.Bids = append(z.Bids, ae.Value().StringValue())
+				}
+			}
+		case "sub_chan":
+			{
+				if val.Type == 0x0A {
+					z.SubChan = nil
+					break
+				}
+				arrBytes, ok := val.ArrayOK()
+				if !ok {
+					return fmt.Errorf("字段 %s 不是数组类型", "sub_chan")
+				}
+				arrElems, err := bsoncore.Document(arrBytes).Elements()
+				if err != nil {
+					return err
+				}
+				z.SubChan = make([]string, 0, len(arrElems))
+				for _, ae := range arrElems {
+					z.SubChan = append(z.SubChan, ae.Value().StringValue())
+				}
+			}
+		case "contracts":
+			{
+				if val.Type == 0x0A {
+					z.ActiveContracts = nil
+					break
+				}
+				arrBytes, ok := val.ArrayOK()
+				if !ok {
+					return fmt.Errorf("字段 %s 不是数组类型", "contracts")
+				}
+				arrElems, err := bsoncore.Document(arrBytes).Elements()
+				if err != nil {
+					return err
+				}
+				z.ActiveContracts = make([]int32, 0, len(arrElems))
+				for _, ae := range arrElems {
+					z.ActiveContracts = append(z.ActiveContracts, ae.Value().Int32())
+				}
+			}
+		case "nid":
+			z.AutoIncrementID = int(val.AsInt64())
+		case "statues":
+			{
+				subBytes, ok := val.DocumentOK()
+				if !ok {
+					return fmt.Errorf("字段 %s 不是文档类型", "statues")
+				}
+				if err := z.Statue.UnmarshalBSON(subBytes); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	return nil
@@ -1607,31 +1356,14 @@ func (z *StatueInfo) UnmarshalBSON(b []byte) error {
 		}
 		data = rem
 
-		raw := []byte(elem)
 		val := elem.Value()
 
-		// Find key length
-		keyLen := 0
-		for raw[1+keyLen] != 0 {
-			keyLen++
-		}
-		keyBytes := raw[1 : 1+keyLen]
-
-		switch keyLen {
-		case 1:
-			switch uint64(keyBytes[0]) << 0 {
-			case uint64('c') << 0:
-				z.Count = val.Int32()
-			default:
-			}
-		case 6:
-			switch uint64(keyBytes[0])<<0 | uint64(keyBytes[1])<<8 | uint64(keyBytes[2])<<16 | uint64(keyBytes[3])<<24 | uint64(keyBytes[4])<<32 | uint64(keyBytes[5])<<40 {
-			case uint64('a')<<0 | uint64('c')<<8 | uint64('t')<<16 | uint64('i')<<24 | uint64('v')<<32 | uint64('e')<<40:
-				z.Active = val.Boolean()
-			default:
-			}
-		default:
-			// unknown key length — skip
+		keyBytes := elem.KeyBytes()
+		switch string(keyBytes) {
+		case "c":
+			z.Count = val.Int32()
+		case "active":
+			z.Active = val.Boolean()
 		}
 	}
 	return nil
@@ -1681,75 +1413,62 @@ func (z *WideStruct) UnmarshalBSON(b []byte) error {
 		}
 		data = rem
 
-		raw := []byte(elem)
 		val := elem.Value()
 
-		// Find key length
-		keyLen := 0
-		for raw[1+keyLen] != 0 {
-			keyLen++
-		}
-		keyBytes := raw[1 : 1+keyLen]
-
-		switch keyLen {
-		case 1:
-			switch uint64(keyBytes[0]) << 0 {
-			case uint64('a') << 0:
-				z.A = val.Int32()
-			case uint64('b') << 0:
-				z.B = val.Int32()
-			case uint64('c') << 0:
-				z.C = val.Int32()
-			case uint64('d') << 0:
-				z.D = val.Int32()
-			case uint64('e') << 0:
-				z.E = val.Int32()
-			case uint64('f') << 0:
-				z.F = val.Int32()
-			case uint64('g') << 0:
-				z.G = val.Int32()
-			case uint64('h') << 0:
-				z.H = val.Int32()
-			case uint64('i') << 0:
-				z.I = val.Int32()
-			case uint64('j') << 0:
-				z.J = val.Int32()
-			case uint64('k') << 0:
-				z.K = val.Int32()
-			case uint64('l') << 0:
-				z.L = val.Int32()
-			case uint64('m') << 0:
-				z.M = val.Int32()
-			case uint64('n') << 0:
-				z.N = val.Int32()
-			case uint64('o') << 0:
-				z.O = val.Int32()
-			case uint64('p') << 0:
-				z.P = val.Int32()
-			case uint64('q') << 0:
-				z.Q = val.Int32()
-			case uint64('r') << 0:
-				z.R = val.Int32()
-			case uint64('s') << 0:
-				z.S = val.Int32()
-			case uint64('t') << 0:
-				z.T = val.Int32()
-			case uint64('u') << 0:
-				z.U = val.Int32()
-			case uint64('v') << 0:
-				z.V = val.Int32()
-			case uint64('w') << 0:
-				z.W = val.Int32()
-			case uint64('x') << 0:
-				z.X = val.Int32()
-			case uint64('y') << 0:
-				z.Y = val.Int32()
-			case uint64('z') << 0:
-				z.Z = val.Int32()
-			default:
-			}
-		default:
-			// unknown key length — skip
+		keyBytes := elem.KeyBytes()
+		switch string(keyBytes) {
+		case "a":
+			z.A = val.Int32()
+		case "b":
+			z.B = val.Int32()
+		case "c":
+			z.C = val.Int32()
+		case "d":
+			z.D = val.Int32()
+		case "e":
+			z.E = val.Int32()
+		case "f":
+			z.F = val.Int32()
+		case "g":
+			z.G = val.Int32()
+		case "h":
+			z.H = val.Int32()
+		case "i":
+			z.I = val.Int32()
+		case "j":
+			z.J = val.Int32()
+		case "k":
+			z.K = val.Int32()
+		case "l":
+			z.L = val.Int32()
+		case "m":
+			z.M = val.Int32()
+		case "n":
+			z.N = val.Int32()
+		case "o":
+			z.O = val.Int32()
+		case "p":
+			z.P = val.Int32()
+		case "q":
+			z.Q = val.Int32()
+		case "r":
+			z.R = val.Int32()
+		case "s":
+			z.S = val.Int32()
+		case "t":
+			z.T = val.Int32()
+		case "u":
+			z.U = val.Int32()
+		case "v":
+			z.V = val.Int32()
+		case "w":
+			z.W = val.Int32()
+		case "x":
+			z.X = val.Int32()
+		case "y":
+			z.Y = val.Int32()
+		case "z":
+			z.Z = val.Int32()
 		}
 	}
 	return nil

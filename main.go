@@ -690,7 +690,6 @@ func buildImportList(structs []structInfo) []string {
 	needsStrconv := false
 	needsBson := false
 	needsPrimitive := false
-	needsBytes := false
 
 	var walk func(f *fieldInfo)
 	walk = func(f *fieldInfo) {
@@ -725,9 +724,6 @@ func buildImportList(structs []structInfo) []string {
 
 	for _, s := range structs {
 		for _, f := range s.Fields {
-			if len(f.BsonKey) >= 9 {
-				needsBytes = true
-			}
 			walk(&f)
 		}
 	}
@@ -744,9 +740,6 @@ func buildImportList(structs []structInfo) []string {
 	}
 	if needsBson {
 		imps = append(imps, "go.mongodb.org/mongo-driver/bson")
-	}
-	if needsBytes {
-		imps = append(imps, "bytes")
 	}
 	if needsPrimitive {
 		imps = append(imps, "go.mongodb.org/mongo-driver/bson/primitive")
@@ -1145,16 +1138,10 @@ func generateUnmarshal(buf *bytes.Buffer, s *structInfo) {
 	buf.WriteString("\t\t}\n")
 	buf.WriteString("\t\tdata = rem\n")
 	buf.WriteString("\n")
-	buf.WriteString("\t\traw := []byte(elem)\n")
 	buf.WriteString("\t\tval := elem.Value()\n")
 	buf.WriteString("\n")
-	buf.WriteString("\t\t// Find key length\n")
-	buf.WriteString("\t\tkeyLen := 0\n")
-	buf.WriteString("\t\tfor raw[1+keyLen] != 0 {\n")
-	buf.WriteString("\t\t\tkeyLen++\n")
-	buf.WriteString("\t\t}\n")
-	buf.WriteString("\t\tkeyBytes := raw[1 : 1+keyLen]\n")
-	buf.WriteString("\n")
+	buf.WriteString("\t\tkeyBytes := elem.KeyBytes()\n")
+
 	// Generate the key dispatch table
 	genKeyDispatch(buf, s.Fields, "\t\t")
 	buf.WriteString("\t}\n")
@@ -1163,74 +1150,17 @@ func generateUnmarshal(buf *bytes.Buffer, s *structInfo) {
 }
 
 func genKeyDispatch(buf *bytes.Buffer, fields []fieldInfo, ind string) {
-	// Group fields by key length
-	groups := make(map[int][]*fieldInfo)
-	var keyLens []int
-	for i := range fields {
-		f := &fields[i]
+	fmt.Fprintf(buf, "%sswitch string(keyBytes) {\n", ind)
+	for _, f := range fields {
 		if f.BsonKey == "" {
 			continue
 		}
-		kl := len(f.BsonKey)
-		if _, ok := groups[kl]; !ok {
-			keyLens = append(keyLens, kl)
-		}
-		groups[kl] = append(groups[kl], f)
+		fmt.Fprintf(buf, "%scase %q:\n", ind+"\t", f.BsonKey)
+		genUnmarshalCaseBody(buf, &f, ind+"\t\t", "val")
 	}
-	sort.Ints(keyLens)
-
-	fmt.Fprintf(buf, "%sswitch keyLen {\n", ind)
-	for _, kl := range keyLens {
-		fmt.Fprintf(buf, "%scase %d:\n", ind, kl)
-		genKeySubDispatch(buf, groups[kl], ind+"\t", kl)
-	}
-	fmt.Fprintf(buf, "%sdefault:\n", ind)
-	fmt.Fprintf(buf, "%s\t// unknown key length \u2014 skip\n", ind)
 	fmt.Fprintf(buf, "%s}\n", ind)
 }
 
-func genKeySubDispatch(buf *bytes.Buffer, fields []*fieldInfo, ind string, keyLen int) {
-	if keyLen <= 8 {
-		// Use uint64 comparison for short keys (1-8 bytes).
-		fmt.Fprintf(buf, "%sswitch", ind)
-		for i := 0; i < keyLen; i++ {
-			if i == 0 {
-				fmt.Fprintf(buf, " uint64(keyBytes[%d])<<%d", i, i*8)
-			} else {
-				fmt.Fprintf(buf, " | uint64(keyBytes[%d])<<%d", i, i*8)
-			}
-		}
-		fmt.Fprintf(buf, " {\n")
-
-		for _, f := range fields {
-			fmt.Fprintf(buf, "%scase", ind+"\t")
-			for i, c := range f.BsonKey {
-				if i == 0 {
-					fmt.Fprintf(buf, " uint64('%c')<<%d", c, i*8)
-				} else {
-					fmt.Fprintf(buf, " | uint64('%c')<<%d", c, i*8)
-				}
-			}
-			fmt.Fprintf(buf, ":\n")
-			genUnmarshalCaseBody(buf, f, ind+"\t\t", "val")
-		}
-		fmt.Fprintf(buf, "%sdefault:\n", ind)
-		fmt.Fprintf(buf, "%s}\n", ind)
-	} else {
-		// Use bytes.Equal for long keys
-		for i, f := range fields {
-			if i == 0 {
-				fmt.Fprintf(buf, "%sif bytes.Equal(keyBytes, []byte(%q)) {\n", ind, f.BsonKey)
-			} else {
-				fmt.Fprintf(buf, "%s} else if bytes.Equal(keyBytes, []byte(%q)) {\n", ind, f.BsonKey)
-			}
-			genUnmarshalCaseBody(buf, f, ind+"\t", "val")
-		}
-		if len(fields) > 0 {
-			fmt.Fprintf(buf, "%s}\n", ind)
-		}
-	}
-}
 
 func genUnmarshalCaseBody(buf *bytes.Buffer, f *fieldInfo, ind2 string, valExpr string) {
 	ind3 := ind2 + "\t"
